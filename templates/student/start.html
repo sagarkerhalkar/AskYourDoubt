@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Student - Ask Your Doubt</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+<div class="join-wrapper">
+
+    <div class="join-left">
+
+        <h1>Student Portal</h1>
+
+        <p>
+            Enter your session ID to join your live classroom.
+            You can also scan the QR code shared by your teacher.
+        </p>
+
+        <p>
+            Ask doubts. Vote on common doubts. Learn better.
+        </p>
+
+    </div>
+
+    <div class="join-right">
+
+        <div class="join-card">
+
+            <h2>Join Classroom</h2>
+
+            <p class="small-text">
+                Enter session ID given by your teacher.
+            </p>
+
+            <form method="POST">
+
+                <label>Session ID</label>
+                <br>
+
+                <input
+                    type="text"
+                    name="session_id"
+                    placeholder="Example: 5"
+                    required>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Continue
+                </button>
+
+            </form>
+
+            <br>
+
+            <a class="btn btn-gray" href="/">
+                Back to Home
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

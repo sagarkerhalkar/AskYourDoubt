@@ -2,41 +2,84 @@
 <html>
 
 <head>
-    <title>Teacher Login</title>
+    <title>Teacher Login - Ask Your Doubt</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Teacher Login</h1>
+<div class="join-wrapper">
 
-<form method="POST">
+    <div class="join-left">
 
-    Username
+        <h1>Teacher Portal</h1>
 
-    <br>
+        <p>
+            Create live classroom doubt sessions, share QR links,
+            answer questions, upload resources, and track learning gaps.
+        </p>
 
-    <input
-        name="username"
-        required>
+        <p>
+            Manage your classroom in real time.
+        </p>
 
-    <br><br>
+    </div>
 
-    Password
+    <div class="join-right">
 
-    <br>
+        <div class="join-card">
 
-    <input
-        type="password"
-        name="password"
-        required>
+            <h2>Teacher Login</h2>
 
-    <br><br>
+            <p class="small-text">
+                Enter your teacher username and password.
+            </p>
 
-    <button>
-        Login
-    </button>
+            <form method="POST">
 
-</form>
+                <label>Username</label>
+                <br>
+
+                <input
+                    type="text"
+                    name="username"
+                    placeholder="Enter username"
+                    required>
+
+                <br><br>
+
+                <label>Password</label>
+                <br>
+
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter password"
+                    required>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Login as Teacher
+                </button>
+
+            </form>
+
+            <br><br>
+
+<a href="/teacher-forgot-password">
+    Forgot Password?
+</a>
+
+            <a class="btn btn-gray" href="/">
+                Back to Home
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
 
 </body>
 </html>

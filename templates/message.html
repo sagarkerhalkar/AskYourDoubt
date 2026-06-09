@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>{{ title }} - Ask Your Doubt</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+<div class="join-wrapper">
+
+    <div class="join-left">
+
+        <h1>Ask Your Doubt</h1>
+
+        <p>
+            Smart classroom doubt management platform for students,
+            teachers, and admins.
+        </p>
+
+    </div>
+
+    <div class="join-right">
+
+        <div class="join-card">
+
+            <h2>{{ title }}</h2>
+
+            <div class="{{ box_class }}">
+                {{ message }}
+            </div>
+
+            <br>
+
+            <a class="primary-btn" href="{{ button_link }}">
+                {{ button_text }}
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

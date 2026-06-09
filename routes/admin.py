@@ -49,8 +49,17 @@ def admin_login_post():
     conn.close()
 
     if not row:
-        return "Invalid Login"
 
+        return render_template(
+            "message.html",
+            title="Invalid Admin Login",
+            message="Username or password is incorrect. Please try again.",
+            box_class="warning",
+            button_text="Back to Admin Login",
+            button_link="/admin-login"
+        )
+
+    session.clear()
     session["admin"] = True
 
     return redirect(
@@ -59,7 +68,7 @@ def admin_login_post():
 
 
 # =====================================
-# DASHBOARD
+# ADMIN DASHBOARD
 # =====================================
 
 @app.route("/admin-dashboard")
@@ -68,9 +77,7 @@ def admin_dashboard():
     if not session.get("admin"):
         return redirect("/admin-login")
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    conn = sqlite3.connect("database.db")
 
     total_teachers = conn.execute(
         "SELECT COUNT(*) FROM teachers"
@@ -88,15 +95,86 @@ def admin_dashboard():
         "SELECT COUNT(*) FROM doubts"
     ).fetchone()[0]
 
+    open_doubts = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM doubts
+        WHERE status='OPEN'
+        """
+    ).fetchone()[0]
+
+    completed_doubts = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM doubts
+        WHERE status='COMPLETED'
+        """
+    ).fetchone()[0]
+
+    skipped_doubts = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM doubts
+        WHERE status='SKIPPED'
+        """
+    ).fetchone()[0]
+
+    category_rows = conn.execute(
+        """
+        SELECT
+            category,
+            COUNT(*)
+        FROM doubts
+        GROUP BY category
+        ORDER BY COUNT(*) DESC
+        """
+    ).fetchall()
+
+    keyword_rows = conn.execute(
+        """
+        SELECT
+            keyword,
+            COUNT(*)
+        FROM doubts
+        GROUP BY keyword
+        ORDER BY COUNT(*) DESC
+        LIMIT 10
+        """
+    ).fetchall()
+
+    teacher_rows = conn.execute(
+        """
+        SELECT
+            t.name,
+            COUNT(d.id)
+        FROM teachers t
+        LEFT JOIN sessions s
+        ON s.teacher_id=t.id
+        LEFT JOIN doubts d
+        ON d.session_id=s.id
+        GROUP BY t.id
+        ORDER BY COUNT(d.id) DESC
+        LIMIT 10
+        """
+    ).fetchall()
+
     conn.close()
 
     return render_template(
         "admin/dashboard.html",
-
         total_teachers=total_teachers,
         total_sessions=total_sessions,
         total_students=total_students,
-        total_doubts=total_doubts
+        total_doubts=total_doubts,
+        open_doubts=open_doubts,
+        completed_doubts=completed_doubts,
+        skipped_doubts=skipped_doubts,
+        category_labels=[row[0] for row in category_rows],
+        category_values=[row[1] for row in category_rows],
+        keyword_labels=[row[0] for row in keyword_rows],
+        keyword_values=[row[1] for row in keyword_rows],
+        teacher_labels=[row[0] for row in teacher_rows],
+        teacher_values=[row[1] for row in teacher_rows]
     )
 
 
@@ -106,6 +184,9 @@ def admin_dashboard():
 
 @app.route("/admin-create-teacher")
 def admin_create_teacher():
+
+    if not session.get("admin"):
+        return redirect("/admin-login")
 
     return render_template(
         "admin/create_teacher.html"
@@ -118,31 +199,48 @@ def admin_create_teacher():
 )
 def admin_create_teacher_post():
 
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
     name = request.form["name"]
     username = request.form["username"]
     password = request.form["password"]
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    conn = sqlite3.connect("database.db")
 
-    conn.execute(
-        """
-        INSERT INTO teachers(
-            name,
-            username,
-            password
-        )
-        VALUES(?,?,?)
-        """,
-        (
-            name,
-            username,
-            password
-        )
-    )
+    try:
 
-    conn.commit()
+        conn.execute(
+            """
+            INSERT INTO teachers(
+                name,
+                username,
+                password
+            )
+            VALUES(?,?,?)
+            """,
+            (
+                name,
+                username,
+                password
+            )
+        )
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.close()
+
+        return render_template(
+            "message.html",
+            title="Teacher Creation Failed",
+            message=str(e),
+            box_class="warning",
+            button_text="Try Again",
+            button_link="/admin-create-teacher"
+        )
+
     conn.close()
 
     return redirect(
@@ -157,9 +255,10 @@ def admin_create_teacher_post():
 @app.route("/admin-teachers")
 def admin_teachers():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     teachers = conn.execute(
         """
@@ -188,9 +287,10 @@ def admin_teachers():
 @app.route("/admin-sessions")
 def admin_sessions():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     rows = conn.execute(
         """
@@ -198,7 +298,9 @@ def admin_sessions():
             s.id,
             s.session_name,
             s.duration,
-            t.name
+            t.name,
+            s.status,
+            s.created_at
         FROM sessions s
         LEFT JOIN teachers t
         ON s.teacher_id=t.id
@@ -221,9 +323,10 @@ def admin_sessions():
 @app.route("/admin-students")
 def admin_students():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     students = conn.execute(
         """
@@ -248,16 +351,13 @@ def admin_students():
 # SESSION STUDENTS
 # =====================================
 
-@app.route(
-    "/admin-session-students/<session_id>"
-)
-def admin_session_students(
-    session_id
-):
+@app.route("/admin-session-students/<session_id>")
+def admin_session_students(session_id):
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     rows = conn.execute(
         """
@@ -275,25 +375,17 @@ def admin_session_students(
     conn.close()
 
     html = f"""
-    <h1>
-    Session {session_id}
-    Students
-    </h1>
-
+    <h1>Session {session_id} Students</h1>
+    <a href="/admin-sessions">Back</a>
     <hr>
     """
 
     for row in rows:
 
         html += f"""
-        Name :
-        {row[0]}
-
+        <b>Name:</b> {row[0]}
         <br>
-
-        Mobile :
-        {row[1]}
-
+        <b>Mobile:</b> {row[1]}
         <hr>
         """
 
@@ -307,9 +399,10 @@ def admin_session_students(
 @app.route("/admin-doubts")
 def admin_doubts():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     doubts = conn.execute(
         """
@@ -337,14 +430,13 @@ def admin_doubts():
 # TEACHER ACTIVITY
 # =====================================
 
-@app.route(
-    "/admin-teacher-activity"
-)
+@app.route("/admin-teacher-activity")
 def admin_teacher_activity():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     rows = conn.execute(
         """
@@ -362,29 +454,19 @@ def admin_teacher_activity():
     conn.close()
 
     html = """
-    <h1>
-    Teacher Activity
-    </h1>
-
+    <h1>Teacher Activity</h1>
+    <a href="/admin-dashboard">Dashboard</a>
     <hr>
     """
 
     for row in rows:
 
         html += f"""
-        Teacher :
-        {row[2]}
-
+        <b>Teacher:</b> {row[2]}
         <br>
-
-        Activity :
-        {row[0]}
-
+        <b>Activity:</b> {row[0]}
         <br>
-
-        Date :
-        {row[1]}
-
+        <b>Date:</b> {row[1]}
         <hr>
         """
 
@@ -395,14 +477,13 @@ def admin_teacher_activity():
 # CATEGORY ANALYTICS
 # =====================================
 
-@app.route(
-    "/admin-category-analytics"
-)
+@app.route("/admin-category-analytics")
 def admin_category_analytics():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     rows = conn.execute(
         """
@@ -418,19 +499,15 @@ def admin_category_analytics():
     conn.close()
 
     html = """
-    <h1>
-    Category Analytics
-    </h1>
-
+    <h1>Category Analytics</h1>
+    <a href="/admin-dashboard">Dashboard</a>
     <hr>
     """
 
     for row in rows:
 
         html += f"""
-        {row[0]}
-        :
-        {row[1]}
+        <b>{row[0]}</b> : {row[1]}
         <br>
         """
 
@@ -441,14 +518,13 @@ def admin_category_analytics():
 # KEYWORD ANALYTICS
 # =====================================
 
-@app.route(
-    "/admin-keyword-analytics"
-)
+@app.route("/admin-keyword-analytics")
 def admin_keyword_analytics():
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
+    if not session.get("admin"):
+        return redirect("/admin-login")
+
+    conn = sqlite3.connect("database.db")
 
     rows = conn.execute(
         """
@@ -465,19 +541,15 @@ def admin_keyword_analytics():
     conn.close()
 
     html = """
-    <h1>
-    Keyword Analytics
-    </h1>
-
+    <h1>Keyword Analytics</h1>
+    <a href="/admin-dashboard">Dashboard</a>
     <hr>
     """
 
     for row in rows:
 
         html += f"""
-        {row[0]}
-        :
-        {row[1]}
+        <b>{row[0]}</b> : {row[1]}
         <br>
         """
 
@@ -485,7 +557,7 @@ def admin_keyword_analytics():
 
 
 # =====================================
-# LOGOUT
+# ADMIN LOGOUT
 # =====================================
 
 @app.route("/admin-logout")

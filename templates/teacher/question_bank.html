@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Question Bank</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Question Bank</h1>
+</div>
+
+<div class="container">
+
+    <div class="section links">
+
+        <a href="/teacher-session/{{ session_id }}">
+            Back to Session
+        </a>
+
+        <a href="/sync-completed-to-bank/{{ session_id }}">
+            Save Completed Questions to Bank
+        </a>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Search Old Questions</h2>
+
+        <form method="GET">
+
+            <input
+                name="search"
+                value="{{ search }}"
+                placeholder="Search by question, category, keyword"
+                style="width:400px;padding:10px;">
+
+            <button style="padding:10px;">
+                Search
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Reusable Questions</h2>
+
+        {% if rows|length == 0 %}
+
+        <p>No questions found.</p>
+
+        {% endif %}
+
+        {% for row in rows %}
+
+        <div style="
+            border:1px solid #ddd;
+            padding:12px;
+            margin-bottom:12px;
+            border-radius:8px;
+            background:white;
+        ">
+
+            <b>Category:</b> {{ row[2] }}
+            |
+            <b>Keyword:</b> {{ row[3] }}
+            |
+            <b>Total Votes:</b> {{ row[4] }}
+
+            <br><br>
+
+            {{ row[1] }}
+
+            <br><br>
+
+            <a href="/add-bank-question-to-session/{{ row[0] }}/{{ session_id }}">
+                Add to This Session
+            </a>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+</body>
+</html>

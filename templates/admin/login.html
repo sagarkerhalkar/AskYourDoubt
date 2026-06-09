@@ -2,41 +2,84 @@
 <html>
 
 <head>
-    <title>Admin Login</title>
+    <title>Admin Login - Ask Your Doubt</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Admin Login</h1>
+<div class="join-wrapper">
 
-<form method="POST">
+    <div class="join-left">
 
-    Username
+        <h1>Admin Portal</h1>
 
-    <br>
+        <p>
+            Manage your full Ask Your Doubt platform from one place.
+        </p>
 
-    <input
-        name="username"
-        required>
+        <p>
+            Teachers, sessions, students, questions, exports,
+            and analytics are controlled here.
+        </p>
 
-    <br><br>
+    </div>
 
-    Password
+    <div class="join-right">
 
-    <br>
+        <div class="join-card">
 
-    <input
-        type="password"
-        name="password"
-        required>
+            <h2>Admin Login</h2>
 
-    <br><br>
+            <p class="small-text">
+                Enter admin username and password.
+            </p>
 
-    <button>
-        Login
-    </button>
+            <form method="POST">
 
-</form>
+                <label>Username</label>
+                <br>
+
+                <input
+                    type="text"
+                    name="username"
+                    placeholder="Enter username"
+                    required>
+
+                <br><br>
+
+                <label>Password</label>
+                <br>
+
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter password"
+                    required>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Login as Admin
+                </button>
+
+            </form>
+
+            <br><br>
+
+<a href="/admin-forgot-password">
+    Forgot Password?
+</a>
+
+            <a class="btn btn-gray" href="/">
+                Back to Home
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
 
 </body>
 </html>
