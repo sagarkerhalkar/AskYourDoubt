@@ -441,9 +441,10 @@ def admin_teacher_activity():
     rows = conn.execute(
         """
         SELECT
+            ta.id,
+            t.name,
             ta.activity,
-            ta.created_at,
-            t.name
+            ta.created_at
         FROM teacher_activity ta
         LEFT JOIN teachers t
         ON ta.teacher_id=t.id
@@ -453,25 +454,10 @@ def admin_teacher_activity():
 
     conn.close()
 
-    html = """
-    <h1>Teacher Activity</h1>
-    <a href="/admin-dashboard">Dashboard</a>
-    <hr>
-    """
-
-    for row in rows:
-
-        html += f"""
-        <b>Teacher:</b> {row[2]}
-        <br>
-        <b>Activity:</b> {row[0]}
-        <br>
-        <b>Date:</b> {row[1]}
-        <hr>
-        """
-
-    return html
-
+    return render_template(
+        "admin/teacher_activity.html",
+        rows=rows
+    )
 
 # =====================================
 # CATEGORY ANALYTICS
@@ -483,36 +469,65 @@ def admin_category_analytics():
     if not session.get("admin"):
         return redirect("/admin-login")
 
+    selected_category = request.args.get("category", "")
+
     conn = sqlite3.connect("database.db")
 
-    rows = conn.execute(
+    category_rows = conn.execute(
         """
         SELECT
             category,
-            COUNT(*)
+            COUNT(*) AS total_questions,
+            SUM(votes) AS total_votes,
+            SUM(CASE WHEN status='OPEN' THEN 1 ELSE 0 END) AS open_count,
+            SUM(CASE WHEN status='COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+            SUM(CASE WHEN status='SKIPPED' THEN 1 ELSE 0 END) AS skipped_count,
+            COUNT(DISTINCT session_id) AS total_sessions
         FROM doubts
         GROUP BY category
-        ORDER BY COUNT(*) DESC
+        ORDER BY total_questions DESC
         """
     ).fetchall()
 
+    questions = []
+
+    if selected_category:
+
+        questions = conn.execute(
+            """
+            SELECT
+                d.question,
+                d.keyword,
+                d.votes,
+                d.status,
+                st.name,
+                st.mobile,
+                se.session_name,
+                t.name,
+                d.created_at
+            FROM doubts d
+            LEFT JOIN students st
+            ON d.student_id=st.id
+            LEFT JOIN sessions se
+            ON d.session_id=se.id
+            LEFT JOIN teachers t
+            ON se.teacher_id=t.id
+            WHERE d.category=?
+            ORDER BY d.votes DESC,d.id DESC
+            """,
+            (selected_category,)
+        ).fetchall()
+
     conn.close()
 
-    html = """
-    <h1>Category Analytics</h1>
-    <a href="/admin-dashboard">Dashboard</a>
-    <hr>
-    """
-
-    for row in rows:
-
-        html += f"""
-        <b>{row[0]}</b> : {row[1]}
-        <br>
-        """
-
-    return html
-
+    return render_template(
+        "admin/category_analytics.html",
+        category_rows=category_rows,
+        selected_category=selected_category,
+        questions=questions,
+        chart_labels=[row[0] for row in category_rows],
+        chart_values=[row[1] for row in category_rows]
+    )
 
 # =====================================
 # KEYWORD ANALYTICS
@@ -524,38 +539,66 @@ def admin_keyword_analytics():
     if not session.get("admin"):
         return redirect("/admin-login")
 
+    selected_keyword = request.args.get("keyword", "")
+
     conn = sqlite3.connect("database.db")
 
-    rows = conn.execute(
+    keyword_rows = conn.execute(
         """
         SELECT
             keyword,
-            COUNT(*)
+            COUNT(*) AS total_questions,
+            SUM(votes) AS total_votes,
+            SUM(CASE WHEN status='OPEN' THEN 1 ELSE 0 END) AS open_count,
+            SUM(CASE WHEN status='COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+            SUM(CASE WHEN status='SKIPPED' THEN 1 ELSE 0 END) AS skipped_count,
+            COUNT(DISTINCT session_id) AS total_sessions
         FROM doubts
         GROUP BY keyword
-        ORDER BY COUNT(*) DESC
+        ORDER BY total_questions DESC
         LIMIT 50
         """
     ).fetchall()
 
+    questions = []
+
+    if selected_keyword:
+
+        questions = conn.execute(
+            """
+            SELECT
+                d.question,
+                d.category,
+                d.votes,
+                d.status,
+                st.name,
+                st.mobile,
+                se.session_name,
+                t.name,
+                d.created_at
+            FROM doubts d
+            LEFT JOIN students st
+            ON d.student_id=st.id
+            LEFT JOIN sessions se
+            ON d.session_id=se.id
+            LEFT JOIN teachers t
+            ON se.teacher_id=t.id
+            WHERE d.keyword=?
+            ORDER BY d.votes DESC,d.id DESC
+            """,
+            (selected_keyword,)
+        ).fetchall()
+
     conn.close()
 
-    html = """
-    <h1>Keyword Analytics</h1>
-    <a href="/admin-dashboard">Dashboard</a>
-    <hr>
-    """
-
-    for row in rows:
-
-        html += f"""
-        <b>{row[0]}</b> : {row[1]}
-        <br>
-        """
-
-    return html
-
-
+    return render_template(
+        "admin/keyword_analytics.html",
+        keyword_rows=keyword_rows,
+        selected_keyword=selected_keyword,
+        questions=questions,
+        chart_labels=[row[0] for row in keyword_rows],
+        chart_values=[row[1] for row in keyword_rows]
+    )
 # =====================================
 # ADMIN LOGOUT
 # =====================================

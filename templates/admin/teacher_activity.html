@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Teacher Activity</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Teacher Activity</h1>
+</div>
+
+<div class="container">
+
+    <div class="section links">
+        <a href="/admin-dashboard">Dashboard</a>
+        <a href="/admin-teachers">Teachers</a>
+    </div>
+
+    <div class="student-hero">
+
+        <h1>Teacher Activity Log</h1>
+
+        <p>
+            Track teacher login, logout, session creation, password changes,
+            completed doubts, skipped doubts, and admin actions.
+        </p>
+
+    </div>
+
+    <div class="section">
+
+        <div class="page-title-row">
+            <h2>Activity Records</h2>
+            <span class="badge">Total: {{ rows|length }}</span>
+        </div>
+
+        {% if rows|length == 0 %}
+
+        <div class="student-empty">
+            No teacher activity found yet.
+        </div>
+
+        {% endif %}
+
+        <div class="activity-timeline">
+
+            {% for row in rows %}
+
+            <div class="activity-card">
+
+                <div class="activity-icon">
+                    👨‍🏫
+                </div>
+
+                <div class="activity-content">
+
+                    <div class="activity-title">
+                        {{ row[1] or "Unknown Teacher" }}
+                    </div>
+
+                    <div class="activity-message">
+                        {{ row[2] }}
+                    </div>
+
+                    <div class="activity-date">
+                        {{ row[3] }}
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
