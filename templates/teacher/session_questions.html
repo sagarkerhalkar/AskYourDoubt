@@ -2,105 +2,124 @@
 <html>
 
 <head>
-
-<title>
-Session {{ session_id }}
-</title>
-
-<meta http-equiv="refresh"
-      content="10">
-
+    <title>{{ session_name }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<div style="
-position:fixed;
-top:10px;
-right:10px;
-border:1px solid black;
-padding:10px;
-background:white;
-">
-
-<img
-src="/static/qr/session_{{ session_id }}.png"
-width="150">
-
-<br>
-
-Session {{ session_id }}
-
+<div class="header">
+    <h1>{{ session_name }} Dashboard</h1>
 </div>
 
-<h1>
-Session {{ session_id }}
-</h1>
+<div class="container">
 
-<h3>
-Students Joined :
-{{ total_students }}
-</h3>
+    <div class="page-layout">
 
-<a href="/teacher-keywords/{{ session_id }}">
-Keyword Analysis
+        <div>
+
+            <div class="section links">
+
+                <a href="/teacher-dashboard">Dashboard</a>
+                <a href="/teacher-resources/{{ session_id }}">Resources</a>
+                <a href="/teacher-question-bank/{{ session_id }}">Question Bank</a>
+                <a href="/teacher-keywords/{{ session_id }}">Keyword Analysis</a>
+                <a href="/teacher-categories/{{ session_id }}">Category Analysis</a>
+                <a href="/export-session-questions/{{ session_id }}">Download Questions</a>
+                <a href="/teacher-logout">Logout</a>
+                {% if session_status == "ACTIVE" %}
+
+<a class="btn btn-red" href="/close-session/{{ session_id }}">
+Close Session
 </a>
 
-&nbsp;&nbsp;&nbsp;
+{% else %}
 
-<a href="/teacher-categories/{{ session_id }}">
-Category Analysis
+<a class="btn btn-green" href="/reopen-session/{{ session_id }}">
+Reopen Session
 </a>
 
-<hr>
+{% endif %}
+{% if session_status == "CLOSED" %}
 
-{% if doubts|length == 0 %}
-
-<h3>
-No Questions Yet
-</h3>
+<div class="warning">
+    This session is closed. Students cannot submit new doubts or upvote.
+</div>
 
 {% endif %}
 
-{% for doubt in doubts %}
+            </div>
 
-<hr>
+            <div class="notice">
+                Live questions refresh automatically. QR code and joining link are on the right side.
+            </div>
 
-<b>Doubt ID:</b>
-{{ doubt[0] }}
+            <div id="teacher-live">
+                <div class="section">
+                    Loading session data...
+                </div>
+            </div>
 
-<br>
+        </div>
 
-<b>Category:</b>
-{{ doubt[2] }}
+        <div class="qr-card">
 
-<br>
+            <img src="/static/qr/session_{{ session_id }}.png">
 
-<b>Votes:</b>
-{{ doubt[3] }}
+            <h3>Scan QR</h3>
 
-<br>
+            <p class="small-text">
+                Students can scan this QR or open the link below.
+            </p>
 
-<b>Status:</b>
-{{ doubt[4] }}
+            <input
+                type="text"
+                id="joinLink"
+                value="{{ join_url }}"
+                readonly>
 
-<br><br>
+            <br><br>
 
-{{ doubt[1] }}
+            <button class="btn" onclick="copyJoinLink()">
+                Copy Join Link
+            </button>
 
-<br><br>
+        </div>
 
-<a href="/complete-doubt/{{ doubt[0] }}">
-Mark Completed
-</a>
+    </div>
 
-&nbsp;&nbsp;&nbsp;
+</div>
 
-<a href="/skip-doubt/{{ doubt[0] }}">
-Skip
-</a>
+<script>
 
-{% endfor %}
+function copyJoinLink(){
+
+    var linkBox = document.getElementById("joinLink");
+
+    linkBox.select();
+
+    document.execCommand("copy");
+
+    alert("Join link copied");
+}
+
+function loadTeacherLive(){
+
+    fetch("/teacher-session-live/{{ session_id }}")
+    .then(function(response){
+        return response.text();
+    })
+    .then(function(data){
+        document.getElementById("teacher-live").innerHTML = data;
+    });
+
+}
+
+loadTeacherLive();
+
+setInterval(loadTeacherLive, 5000);
+
+</script>
 
 </body>
 </html>

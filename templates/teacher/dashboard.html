@@ -3,37 +3,103 @@
 
 <head>
     <title>Teacher Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>
-Welcome {{ teacher_name }}
-</h1>
+<div class="header">
+    <h1>Teacher Dashboard</h1>
+</div>
 
-<hr>
+<div class="container">
 
-<h3>Statistics</h3>
+    <h2>
+        Welcome {{ teacher_name }}
+    </h2>
 
-Total Sessions :
-{{ total_sessions }}
+    <div class="card-row">
 
-<br><br>
+        <div class="card">
+            <h3>Total Sessions</h3>
+            <p>{{ total_sessions }}</p>
+        </div>
 
-Total Questions :
-{{ total_questions }}
+        <div class="card">
+            <h3>Total Questions</h3>
+            <p>{{ total_questions }}</p>
+        </div>
 
-<br><br>
+    </div>
 
-<a href="/teacher-create-session">
-Create Session
-</a>
+    <div class="section links">
 
-<br><br>
+        <h2>Actions</h2>
 
-<a href="/teacher-logout">
-Logout
-</a>
+        <a href="/teacher-create-session">
+            Create New Session
+        </a>
+
+        <a href="/teacher-logout">
+            Logout
+        </a>
+
+    </div>
+
+    <div class="section">
+
+        <h2>My Sessions</h2>
+
+        {% if sessions|length == 0 %}
+
+        <p>No sessions created yet.</p>
+
+        {% endif %}
+
+        <table class="table">
+
+            <tr>
+                <th>Session ID</th>
+                <th>Session Name</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+
+            {% for s in sessions %}
+
+            <tr>
+                <td>{{ s[0] }}</td>
+                <td>{{ s[1] }}</td>
+                <td>{{ s[2] }} minutes</td>
+                <td>{{ s[3] }}</td>
+                <td>{{ s[4] }}</td>
+                <td>
+                    <a class="btn" href="/teacher-session/{{ s[0] }}">
+                        Open
+                    </a>
+
+                    <a class="btn btn-gray" href="/teacher-keywords/{{ s[0] }}">
+                        Keywords
+                    </a>
+
+                    <a class="btn btn-gray" href="/teacher-categories/{{ s[0] }}">
+                        Categories
+                    </a>
+                    <a href="/teacher-change-password">
+                        Change Password
+                    </a>
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+    </div>
+
+</div>
 
 </body>
 </html>

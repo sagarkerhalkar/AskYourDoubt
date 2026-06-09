@@ -3,35 +3,115 @@
 
 <head>
     <title>Teachers</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Teachers</h1>
+<div class="header">
+    <h1>Teachers</h1>
+</div>
 
-{% for teacher in teachers %}
+<div class="container">
 
-<hr>
+    <div class="section links">
 
-ID :
-{{ teacher[0] }}
+        <a href="/admin-dashboard">
+            Dashboard
+        </a>
 
-<br>
+        <a href="/admin-create-teacher">
+            Create Teacher
+        </a>
 
-Name :
-{{ teacher[1] }}
+        <a href="/admin-export-teachers">
+            Download Teacher Summary
+        </a>
 
-<br>
+    </div>
 
-Username :
-{{ teacher[2] }}
+    <div class="section">
 
-<br>
+        <h2>Teacher Accounts</h2>
 
-Status :
-{{ teacher[3] }}
+        {% if teachers|length == 0 %}
 
-{% endfor %}
+        <p>No teachers found.</p>
+
+        {% endif %}
+
+        <table class="table">
+
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+
+            {% for teacher in teachers %}
+
+            <tr>
+                <td>{{ teacher[0] }}</td>
+
+                <td>{{ teacher[1] }}</td>
+
+                <td>{{ teacher[2] }}</td>
+
+                <td>
+                    {% if teacher[3] == "ACTIVE" %}
+
+                    <span class="badge badge-green">
+                        ACTIVE
+                    </span>
+
+                    {% else %}
+
+                    <span class="badge badge-red">
+                        INACTIVE
+                    </span>
+
+                    {% endif %}
+                </td>
+
+                <td>
+
+                    <a class="btn"
+                       href="/admin-export-teacher-questions/{{ teacher[0] }}">
+                        Download Questions
+                    </a>
+
+                    {% if teacher[3] == "ACTIVE" %}
+
+                    <a class="btn btn-red"
+                       href="/admin-disable-teacher/{{ teacher[0] }}">
+                        Disable Teacher
+                    </a>
+
+                    {% else %}
+
+                    <a class="btn btn-green"
+                       href="/admin-enable-teacher/{{ teacher[0] }}">
+                        Enable Teacher
+                    </a>
+                    <a class="btn btn-gray"
+                        href="/admin-reset-teacher-password/{{ teacher[0] }}">
+                         Reset Password
+                    </a>
+
+                    {% endif %}
+
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+    </div>
+
+</div>
 
 </body>
 </html>

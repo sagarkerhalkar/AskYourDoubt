@@ -2,43 +2,90 @@
 <html>
 
 <head>
-    <title>Join Session</title>
+    <title>Join Session - Ask Your Doubt</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Join Session</h1>
+<div class="join-wrapper">
 
-<form method="POST"
-      action="/student-join/{{ session_id }}">
+    <div class="join-left">
 
-    Name
+        <h1>Ask Your Doubt</h1>
 
-    <br>
+        <p>
+            Join your live classroom session, ask questions,
+            upvote common doubts, and access teacher-shared resources.
+        </p>
 
-    <input
-        type="text"
-        name="name"
-        required>
+        <p>
+            <b>{{ session_name }}</b>
+            <br>
+            Session ID: {{ session_id }}
+        </p>
 
-    <br><br>
+    </div>
 
-    Mobile
+    <div class="join-right">
 
-    <br>
+        <div class="join-card">
 
-    <input
-        type="text"
-        name="mobile"
-        required>
+            {% if session_status == "ACTIVE" %}
 
-    <br><br>
+            <h2>Join Session</h2>
 
-    <button>
-        Join Session
-    </button>
+            <p class="small-text">
+                Enter your details to continue.
+            </p>
 
-</form>
+            <form method="POST"
+                  action="/student-join/{{ session_id }}">
+
+                <label>Your Name</label>
+                <br>
+
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Enter your name"
+                    required>
+
+                <br><br>
+
+                <label>Mobile Number</label>
+                <br>
+
+                <input
+                    type="text"
+                    name="mobile"
+                    placeholder="Enter mobile number"
+                    required>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Join Classroom
+                </button>
+
+            </form>
+
+            {% else %}
+
+            <h2>Session Closed</h2>
+
+            <div class="warning">
+                This classroom session is closed.
+                Please contact your teacher.
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
 
 </body>
 </html>

@@ -3,89 +3,180 @@
 
 <head>
     <title>Admin Dashboard</title>
+
+    <link rel="stylesheet"
+          href="/static/css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<h1>
-Admin Dashboard
-</h1>
+<div class="header">
+    <h1>Admin Dashboard</h1>
+</div>
 
-<hr>
+<div class="container">
 
-Teachers :
-{{ total_teachers }}
+    <div class="card-row">
 
-<br><br>
+        <div class="card">
+            <h3>Teachers</h3>
+            <p>{{ total_teachers }}</p>
+        </div>
 
-Sessions :
-{{ total_sessions }}
+        <div class="card">
+            <h3>Sessions</h3>
+            <p>{{ total_sessions }}</p>
+        </div>
 
-<br><br>
+        <div class="card">
+            <h3>Students</h3>
+            <p>{{ total_students }}</p>
+        </div>
 
-Students :
-{{ total_students }}
+        <div class="card">
+            <h3>Total Doubts</h3>
+            <p>{{ total_doubts }}</p>
+        </div>
 
-<br><br>
+        <div class="card">
+            <h3>Open</h3>
+            <p>{{ open_doubts }}</p>
+        </div>
 
-Doubts :
-{{ total_doubts }}
+        <div class="card">
+            <h3>Completed</h3>
+            <p>{{ completed_doubts }}</p>
+        </div>
 
-<br><br>
+        <div class="card">
+            <h3>Skipped</h3>
+            <p>{{ skipped_doubts }}</p>
+        </div>
 
-<hr>
+    </div>
 
-<a href="/admin-create-teacher">
-Create Teacher
-</a>
+    <div class="section links">
 
-<br><br>
+        <h2>Management</h2>
 
-<a href="/admin-teachers">
-Teachers
-</a>
+        <a href="/admin-create-teacher">Create Teacher</a>
+        <a href="/admin-teachers">Teachers</a>
+        <a href="/admin-sessions">Sessions</a>
+        <a href="/admin-students">Students</a>
+        <a href="/admin-doubts">Doubts</a>
+        <a href="/admin-teacher-activity">Teacher Activity</a>
+        <a href="/admin-category-analytics">Category Analytics</a>
+        <a href="/admin-keyword-analytics">Keyword Analytics</a>
+        <a href="/admin-question-bank">Question Bank</a>
+        <a href="/admin-change-password">Change Admin Password</a>
 
-<br><br>
+    </div>
 
-<a href="/admin-sessions">
-Sessions
-</a>
+    <div class="section links">
 
-<br><br>
+        <h2>Downloads</h2>
 
-<a href="/admin-students">
-Students
-</a>
+        <a href="/admin-export-all-questions">All Questions</a>
+        <a href="/admin-export-sessions">Session Summary</a>
+        <a href="/admin-export-teachers">Teacher Summary</a>
+        <a href="/admin-export-students">Students</a>
+        <a href="/admin-export-analytics">Analytics Summary</a>
+        <a href="/admin-export-full-data">Full Data ZIP</a>
 
-<br><br>
+    </div>
 
-<a href="/admin-doubts">
-Doubts
-</a>
+    <div class="section">
 
-<br><br>
+        <h2>Category-wise Doubts</h2>
 
-<a href="/admin-teacher-activity">
-Teacher Activity
-</a>
+        <div class="chart-box">
+            <canvas id="categoryChart"></canvas>
+        </div>
 
-<br><br>
+    </div>
 
-<a href="/admin-category-analytics">
-Category Analytics
-</a>
+    <div class="section">
 
-<br><br>
+        <h2>Top Keywords</h2>
 
-<a href="/admin-keyword-analytics">
-Keyword Analytics
-</a>
+        <div class="chart-box">
+            <canvas id="keywordChart"></canvas>
+        </div>
 
-<br><br>
+    </div>
 
-<a href="/admin-logout">
-Logout
-</a>
+    <div class="section">
+
+        <h2>Teacher-wise Questions</h2>
+
+        <div class="chart-box">
+            <canvas id="teacherChart"></canvas>
+        </div>
+
+    </div>
+
+    <div class="section links">
+        <a href="/admin-logout">Logout</a>
+    </div>
+
+</div>
+
+<script>
+
+const categoryLabels = {{ category_labels|tojson }};
+const categoryValues = {{ category_values|tojson }};
+
+const keywordLabels = {{ keyword_labels|tojson }};
+const keywordValues = {{ keyword_values|tojson }};
+
+const teacherLabels = {{ teacher_labels|tojson }};
+const teacherValues = {{ teacher_values|tojson }};
+
+new Chart(
+    document.getElementById("categoryChart"),
+    {
+        type: "bar",
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                label: "Doubts",
+                data: categoryValues
+            }]
+        }
+    }
+);
+
+new Chart(
+    document.getElementById("keywordChart"),
+    {
+        type: "bar",
+        data: {
+            labels: keywordLabels,
+            datasets: [{
+                label: "Keywords",
+                data: keywordValues
+            }]
+        }
+    }
+);
+
+new Chart(
+    document.getElementById("teacherChart"),
+    {
+        type: "bar",
+        data: {
+            labels: teacherLabels,
+            datasets: [{
+                label: "Questions",
+                data: teacherValues
+            }]
+        }
+    }
+);
+
+</script>
 
 </body>
 </html>

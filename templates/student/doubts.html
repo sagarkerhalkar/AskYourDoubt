@@ -2,133 +2,221 @@
 <html>
 
 <head>
-
-<title>
-Ask Your Doubt
-</title>
-
-<meta
-http-equiv="refresh"
-content="10">
-
+    <title>Ask Your Doubt</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>
-Ask Your Doubt
-</h1>
+<div class="header">
+    <h1>Ask Your Doubt</h1>
+</div>
 
-<form method="POST"
-      action="/submit-doubt/{{ session_id }}">
+<div class="container">
 
-<textarea
-name="question"
-rows="6"
-cols="80"
-required>
-</textarea>
+    <div class="student-hero">
 
-<br><br>
+        <h1>Hello, {{ student_name }} 👋</h1>
 
-<button>
-Submit Doubt
-</button>
+        <p>
+            You are connected to {{ session_name }}.
+            Ask your doubt, vote on similar questions, and view resources shared by your teacher.
+        </p>
 
-</form>
+        <p>
+            {{ session_name }} | Session ID: {{ session_id }}
+        </p>
 
-<hr>
+    </div>
 
-<h2>
-Resources Shared By Teacher
-</h2>
+    <div class="student-grid">
 
-{% if resources|length == 0 %}
+        <div>
 
-No Resources Available
+            <div class="ask-card">
 
-{% endif %}
+                <h2>Write Your Doubt</h2>
 
-{% for r in resources %}
+                <div class="notice">
+                    Your typing will not be lost. Only the live doubts section refreshes automatically.
+                </div>
 
-<hr>
+                <form method="POST"
+                      action="/submit-doubt/{{ session_id }}">
 
-<b>
-{{ r[0] }}
-</b>
+                    <textarea
+                        class="student-textarea"
+                        name="question"
+                        required
+                        placeholder="Example: What is Newton's First Law?"></textarea>
 
-<br><br>
+                    <br><br>
 
-{% if r[1] == "VIDEO" %}
+                    <button class="primary-btn">
+                        Submit Doubt
+                    </button>
 
-<a href="{{ r[3] }}"
-target="_blank">
+                </form>
 
-Open Video
+            </div>
 
-</a>
+            <div class="section student-doubt-list">
 
-{% endif %}
+                <h2>Live Doubts</h2>
 
-{% if r[1] == "PDF" %}
+                <p class="small-text">
+                    Questions refresh every few seconds.
+                </p>
 
-<a href="/{{ r[2] }}"
-target="_blank">
+                <div id="doubt-list">
+                    Loading doubts...
+                </div>
 
-Open PDF
+            </div>
 
-</a>
+        </div>
 
-{% endif %}
+        <div>
 
-{% if r[4] %}
+            <div class="student-side-card">
 
-<br><br>
+                <h2>Resources</h2>
 
-{{ r[4] }}
+                <p class="small-text">
+                    Notes, PDFs, images, PPTs, and videos shared by teacher.
+                </p>
 
-{% endif %}
+                {% if resources|length == 0 %}
 
-{% endfor %}
+                <div class="student-empty">
+                    No resources shared yet.
+                </div>
 
-<hr>
+                {% endif %}
 
-<h2>
-Live Doubts
-</h2>
+                {% for r in resources %}
 
-{% if doubts|length == 0 %}
+                <div class="student-resource">
 
-No Doubts Yet
+                    <div class="student-resource-title">
+                        {{ r[0] }}
+                    </div>
 
-{% endif %}
+                    <div class="small-text">
+                        Type: {{ r[1] }}
+                    </div>
 
-{% for doubt in doubts %}
+                    <br>
 
-<hr>
+                    {% if r[1] == "VIDEO" %}
 
-<b>
-Votes :
-{{ doubt[2] }}
-</b>
+                    <a class="btn" href="{{ r[3] }}" target="_blank">
+                        Open Video
+                    </a>
 
-<br><br>
+                    {% endif %}
 
-{{ doubt[1] }}
+                    {% if r[1] == "PDF" %}
 
-<br><br>
+                    <a class="btn" href="/{{ r[2] }}" target="_blank">
+                        Open PDF
+                    </a>
 
-<a href="/upvote/{{ doubt[0] }}">
-👍 I Have Same Doubt
-</a>
+                    {% endif %}
 
-{% endfor %}
+                    {% if r[1] == "PPT" %}
 
-<hr>
+                    <a class="btn" href="/{{ r[2] }}" target="_blank">
+                        Open PPT
+                    </a>
 
-<a href="/student-logout">
-Logout
-</a>
+                    {% endif %}
+
+                    {% if r[1] == "IMAGE" %}
+
+                    <a class="btn" href="/{{ r[2] }}" target="_blank">
+                        Open Image
+                    </a>
+
+                    {% endif %}
+
+                    {% if r[4] %}
+
+                    <p>{{ r[4] }}</p>
+
+                    {% endif %}
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+            <div class="student-side-card" style="margin-top:22px;">
+
+                <h2>How it works</h2>
+
+                <p class="small-text">
+                    1. Type your doubt.
+                    <br>
+                    2. Check if someone already asked the same doubt.
+                    <br>
+                    3. Click “I have same doubt” to vote.
+                    <br>
+                    4. Teacher will answer in class.
+                </p>
+
+                <a class="btn btn-gray" href="/student-logout">
+                    Logout
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+function loadDoubts(){
+
+    fetch("/student-doubt-list/{{ session_id }}")
+    .then(function(response){
+        return response.text();
+    })
+    .then(function(data){
+        document.getElementById("doubt-list").innerHTML = data;
+    });
+
+}
+
+function checkSessionStatus(){
+
+    fetch("/student-session-status/{{ session_id }}")
+    .then(function(response){
+        return response.json();
+    })
+    .then(function(data){
+
+        if(data.status !== "ACTIVE"){
+
+            window.location.href = "/session-ended/{{ session_id }}";
+
+        }
+
+    });
+
+}
+
+loadDoubts();
+checkSessionStatus();
+
+setInterval(loadDoubts, 5000);
+setInterval(checkSessionStatus, 3000);
+
+</script>
 
 </body>
 </html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Admin Question Bank</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Admin Question Bank</h1>
+</div>
+
+<div class="container">
+
+    <div class="section links">
+
+        <a href="/admin-dashboard">
+            Dashboard
+        </a>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Search Repository</h2>
+
+        <form method="GET">
+
+            <input
+                name="search"
+                value="{{ search }}"
+                placeholder="Search question, category, keyword"
+                style="width:400px;padding:10px;">
+
+            <button style="padding:10px;">
+                Search
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Saved Questions</h2>
+
+        {% if rows|length == 0 %}
+
+        <p>No saved questions yet.</p>
+
+        {% endif %}
+
+        {% for row in rows %}
+
+        <div style="
+            border:1px solid #ddd;
+            padding:12px;
+            margin-bottom:12px;
+            border-radius:8px;
+            background:white;
+        ">
+
+            <b>ID:</b> {{ row[0] }}
+            |
+            <b>Category:</b> {{ row[2] }}
+            |
+            <b>Keyword:</b> {{ row[3] }}
+            |
+            <b>Total Votes:</b> {{ row[4] }}
+            |
+            <b>Total Sessions:</b> {{ row[5] }}
+
+            <br><br>
+
+            {{ row[1] }}
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Keyword Analysis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>{{ session_name }} - Keyword Analysis</h1>
+</div>
+
+<div class="container">
+
+    <div class="section links">
+        <a href="/teacher-session/{{ session_id }}">Back to Session</a>
+        <a href="/teacher-categories/{{ session_id }}">Category Analysis</a>
+        <a href="/export-session-questions/{{ session_id }}">Download Questions</a>
+    </div>
+
+    <div class="section">
+
+        <h2>Top Keywords</h2>
+
+        {% if keyword_rows|length == 0 %}
+
+        <div class="student-empty">
+            No keyword data yet.
+        </div>
+
+        {% else %}
+
+        <div class="chart-box">
+            <canvas id="keywordChart"></canvas>
+        </div>
+
+        {% endif %}
+
+    </div>
+
+    <div class="section">
+
+        <h2>Keywords</h2>
+
+        <div class="analytics-grid">
+
+            {% for row in keyword_rows %}
+
+            <a class="analytics-card"
+               href="/teacher-keywords/{{ session_id }}?keyword={{ row[0] }}">
+
+                <div class="analytics-title">
+                    {{ row[0] }}
+                </div>
+
+                <div class="analytics-number">
+                    {{ row[1] }}
+                </div>
+
+                <div class="analytics-meta">
+                    Votes: {{ row[2] or 0 }}
+                    <br>
+                    Open: {{ row[3] or 0 }} |
+                    Completed: {{ row[4] or 0 }} |
+                    Skipped: {{ row[5] or 0 }}
+                </div>
+
+            </a>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    {% if selected_keyword %}
+
+    <div class="section">
+
+        <h2>Questions for keyword: {{ selected_keyword }}</h2>
+
+        {% if questions|length == 0 %}
+
+        <p>No questions found.</p>
+
+        {% endif %}
+
+        {% for q in questions %}
+
+        <div class="doubt-card">
+
+            {% if q[3] == "COMPLETED" %}
+            <span class="badge badge-green">Completed</span>
+            {% elif q[3] == "SKIPPED" %}
+            <span class="badge badge-red">Skipped</span>
+            {% else %}
+            <span class="badge">Open</span>
+            {% endif %}
+
+            <span class="badge">
+                Category: {{ q[1] }}
+            </span>
+
+            <span class="badge">
+                Votes: {{ q[2] }}
+            </span>
+
+            <div class="doubt-question">
+                {{ q[0] }}
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+
+const labels = {{ chart_labels|tojson }};
+const values = {{ chart_values|tojson }};
+
+new Chart(
+    document.getElementById("keywordChart"),
+    {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Questions",
+                data: values
+            }]
+        }
+    }
+);
+
+</script>
+
+</body>
+</html>
