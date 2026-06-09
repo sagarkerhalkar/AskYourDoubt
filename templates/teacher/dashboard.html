@@ -14,9 +14,16 @@
 
 <div class="container">
 
-    <h2>
-        Welcome {{ teacher_name }}
-    </h2>
+    <div class="student-hero">
+
+        <h1>Welcome, {{ teacher_name }} 👋</h1>
+
+        <p>
+            Manage your live doubt sessions, view classroom questions,
+            analyse topics, and share resources with students.
+        </p>
+
+    </div>
 
     <div class="card-row">
 
@@ -32,29 +39,45 @@
 
     </div>
 
-    <div class="section links">
+    <div class="section">
 
-        <h2>Actions</h2>
+        <h2>Quick Actions</h2>
 
-        <a href="/teacher-create-session">
-            Create New Session
-        </a>
+        <div class="admin-nav-grid">
 
-        <a href="/teacher-logout">
-            Logout
-        </a>
+            <a class="admin-nav-card" href="/teacher-create-session">
+                <b>Create New Session</b>
+                <span>Start a new live classroom doubt session</span>
+            </a>
+
+            <a class="admin-nav-card" href="/teacher-change-password">
+                <b>Change Password</b>
+                <span>Update your teacher login password</span>
+            </a>
+
+            <a class="admin-nav-card" href="/teacher-logout">
+                <b>Logout</b>
+                <span>Exit from teacher dashboard</span>
+            </a>
+
+        </div>
 
     </div>
 
     <div class="section">
 
-        <h2>My Sessions</h2>
+        <div class="page-title-row">
+            <h2>My Sessions</h2>
+            <span class="badge">Total: {{ sessions|length }}</span>
+        </div>
 
         {% if sessions|length == 0 %}
 
-        <p>No sessions created yet.</p>
+        <div class="student-empty">
+            No sessions created yet.
+        </div>
 
-        {% endif %}
+        {% else %}
 
         <table class="table">
 
@@ -71,31 +94,47 @@
 
             <tr>
                 <td>{{ s[0] }}</td>
-                <td>{{ s[1] }}</td>
-                <td>{{ s[2] }} minutes</td>
-                <td>{{ s[3] }}</td>
-                <td>{{ s[4] }}</td>
+
                 <td>
-                    <a class="btn" href="/teacher-session/{{ s[0] }}">
-                        Open
-                    </a>
+                    <b>{{ s[1] }}</b>
+                </td>
 
-                    <a class="btn btn-gray" href="/teacher-keywords/{{ s[0] }}">
-                        Keywords
-                    </a>
+                <td>{{ s[2] }} minutes</td>
 
-                    <a class="btn btn-gray" href="/teacher-categories/{{ s[0] }}">
-                        Categories
-                    </a>
-                    <a href="/teacher-change-password">
-                        Change Password
-                    </a>
+                <td>
+                    {% if s[3] == "ACTIVE" %}
+                    <span class="badge badge-green">ACTIVE</span>
+                    {% else %}
+                    <span class="badge badge-red">CLOSED</span>
+                    {% endif %}
+                </td>
+
+                <td>{{ s[4] }}</td>
+
+                <td>
+                    <div class="action-row">
+
+                        <a class="btn" href="/teacher-session/{{ s[0] }}">
+                            Open
+                        </a>
+
+                        <a class="btn btn-gray" href="/teacher-keywords/{{ s[0] }}">
+                            Keywords
+                        </a>
+
+                        <a class="btn btn-gray" href="/teacher-categories/{{ s[0] }}">
+                            Categories
+                        </a>
+
+                    </div>
                 </td>
             </tr>
 
             {% endfor %}
 
         </table>
+
+        {% endif %}
 
     </div>
 

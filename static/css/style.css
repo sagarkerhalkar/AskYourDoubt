@@ -616,3 +616,205 @@ textarea {
         min-height: auto;
     }
 }
+/* ================================
+   PREMIUM ADMIN PAGES
+================================ */
+
+.admin-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+}
+
+.admin-nav-card {
+    display: block;
+    text-decoration: none;
+    color: #111827;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+    transition: 0.2s;
+}
+
+.admin-nav-card:hover {
+    transform: translateY(-4px);
+    border-color: #2563eb;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+}
+
+.admin-nav-card b {
+    display: block;
+    font-size: 16px;
+    color: #1e3a8a;
+    margin-bottom: 6px;
+}
+
+.admin-nav-card span {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.page-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.clean-form-card {
+    max-width: 520px;
+}
+
+.full-width-input {
+    width: 100%;
+}
+
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: bold;
+}
+/* ================================
+   ACTIVITY TIMELINE
+================================ */
+
+.activity-timeline {
+    display: grid;
+    gap: 16px;
+}
+
+.activity-card {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+}
+
+.activity-icon {
+    width: 46px;
+    height: 46px;
+    background: #e0ecff;
+    color: #1d4ed8;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.activity-title {
+    font-weight: bold;
+    font-size: 17px;
+    color: #1e3a8a;
+}
+
+.activity-message {
+    margin-top: 6px;
+    font-size: 15px;
+    color: #111827;
+}
+
+.activity-date {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #6b7280;
+}
+/* ================================
+   TEACHER RESOURCES PAGE
+================================ */
+
+.resource-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-bottom: 24px;
+}
+
+.resource-form-card {
+    background: white;
+    border-radius: 22px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.resource-form-card h2 {
+    margin-top: 0;
+}
+
+.resource-big-icon {
+    font-size: 42px;
+    margin-bottom: 14px;
+}
+
+.resource-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.modern-resource-card {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+    transition: 0.2s;
+}
+
+.modern-resource-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+    border-color: #2563eb;
+}
+
+.resource-top {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.resource-icon {
+    width: 52px;
+    height: 52px;
+    background: #e0ecff;
+    color: #1d4ed8;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+}
+
+.resource-top h3 {
+    margin: 0 0 8px;
+}
+
+.resource-notes {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 14px;
+    color: #374151;
+    line-height: 1.6;
+}
+    
+@media screen and (max-width: 900px) {
+    .resource-form-grid {
+        grid-template-columns: 1fr;
+    }
+}

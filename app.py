@@ -98,6 +98,7 @@ import routes.resources
 import routes.exports
 import routes.repository
 import routes.admin_controls
+import routes.passwords
 
 
 # =====================================

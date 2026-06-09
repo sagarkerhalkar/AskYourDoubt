@@ -3,48 +3,89 @@
 
 <head>
     <title>Sessions</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Sessions</h1>
+<div class="header">
+    <h1>All Sessions</h1>
+</div>
 
-{% for row in rows %}
+<div class="container">
 
-<hr>
+    <div class="section links">
+        <a href="/admin-dashboard">Dashboard</a>
+        <a href="/admin-export-sessions">Download Session Summary</a>
+    </div>
 
-Session ID :
-{{ row[0] }}
+    <div class="section">
 
-<br>
+        <div class="page-title-row">
+            <h2>Session Records</h2>
+            <span class="badge">Total: {{ rows|length }}</span>
+        </div>
 
-Session :
-{{ row[1] }}
+        {% if rows|length == 0 %}
 
-<br>
+        <div class="student-empty">
+            No sessions found.
+        </div>
 
-Duration :
-{{ row[2] }}
+        {% else %}
 
-Minutes
+        <table class="table">
 
-<br>
+            <tr>
+                <th>ID</th>
+                <th>Session</th>
+                <th>Teacher</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
 
-Teacher :
-{{ row[3] }}
+            {% for row in rows %}
 
-<br><br>
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td><b>{{ row[1] }}</b></td>
+                <td>{{ row[3] }}</td>
+                <td>{{ row[2] }} minutes</td>
 
-<a href="/admin-session-students/{{ row[0] }}">
-View Students
-</a>
-&nbsp;&nbsp;
+                <td>
+                    {% if row[4] == "ACTIVE" %}
+                    <span class="badge badge-green">ACTIVE</span>
+                    {% else %}
+                    <span class="badge badge-red">CLOSED</span>
+                    {% endif %}
+                </td>
 
-<a href="/admin-export-session-questions/{{ row[0] }}">
-Download This Session Questions
-</a>
+                <td>{{ row[5] }}</td>
 
-{% endfor %}
+                <td>
+                    <div class="action-row">
+                        <a class="btn" href="/admin-session-students/{{ row[0] }}">
+                            Students
+                        </a>
+
+                        <a class="btn btn-gray" href="/admin-export-session-questions/{{ row[0] }}">
+                            Download Questions
+                        </a>
+                    </div>
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+        {% endif %}
+
+    </div>
+
+</div>
 
 </body>
 </html>

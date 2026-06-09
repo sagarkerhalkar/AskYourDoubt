@@ -3,44 +3,72 @@
 
 <head>
     <title>All Doubts</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>All Doubts</h1>
+<div class="header">
+    <h1>All Doubts</h1>
+</div>
 
-{% for doubt in doubts %}
+<div class="container">
 
-<hr>
+    <div class="section links">
+        <a href="/admin-dashboard">Dashboard</a>
+        <a href="/admin-export-all-questions">Download All Questions</a>
+    </div>
 
-ID :
-{{ doubt[0] }}
+    <div class="section">
 
-<br>
+        <div class="page-title-row">
+            <h2>Question Records</h2>
+            <span class="badge">Total: {{ doubts|length }}</span>
+        </div>
 
-Category :
-{{ doubt[2] }}
+        {% if doubts|length == 0 %}
 
-<br>
+        <div class="student-empty">
+            No doubts found.
+        </div>
 
-Keyword :
-{{ doubt[3] }}
+        {% endif %}
 
-<br>
+        {% for doubt in doubts %}
 
-Votes :
-{{ doubt[4] }}
+        <div class="doubt-card">
 
-<br>
+            {% if doubt[5] == "COMPLETED" %}
+            <span class="badge badge-green">Completed</span>
+            {% elif doubt[5] == "SKIPPED" %}
+            <span class="badge badge-red">Skipped</span>
+            {% else %}
+            <span class="badge">Open</span>
+            {% endif %}
 
-Status :
-{{ doubt[5] }}
+            <span class="badge">
+                Category: {{ doubt[2] }}
+            </span>
 
-<br><br>
+            <span class="badge">
+                Keyword: {{ doubt[3] }}
+            </span>
 
-{{ doubt[1] }}
+            <span class="badge">
+                Votes: {{ doubt[4] }}
+            </span>
 
-{% endfor %}
+            <div class="doubt-question">
+                {{ doubt[1] }}
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
 
 </body>
 </html>

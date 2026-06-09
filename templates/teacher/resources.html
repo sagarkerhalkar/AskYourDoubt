@@ -2,239 +2,295 @@
 <html>
 
 <head>
-    <title>Session Resources</title>
+    <title>{{ session_name }} Resources</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>
-Session {{ session_id }} Resources
-</h1>
-
-<a href="/teacher-session/{{ session_id }}">
-Back to Session
-</a>
-
-<hr>
-
-<h2>
-Upload File
-</h2>
-
-<form method="POST"
-      action="/upload-resource/{{ session_id }}"
-      enctype="multipart/form-data">
-
-    Title
-
-    <br>
-
-    <input
-        name="title"
-        required>
-
-    <br><br>
-
-    Resource Type
-
-    <br>
-
-    <select name="resource_type">
-
-        <option value="PDF">
-            PDF
-        </option>
-
-        <option value="PPT">
-            PPT / PPTX
-        </option>
-
-        <option value="IMAGE">
-            Image
-        </option>
-
-    </select>
-
-    <br><br>
-
-    File
-
-    <br>
-
-    <input
-        type="file"
-        name="file"
-        required>
-
-    <br><br>
-
-    <button>
-        Upload
-    </button>
-
-</form>
-
-<hr>
-
-<h2>
-Add Video Link
-</h2>
-
-<form method="POST"
-      action="/add-video-resource/{{ session_id }}">
-
-    Title
-
-    <br>
-
-    <input
-        name="title"
-        required>
-
-    <br><br>
-
-    Video / YouTube Link
-
-    <br>
-
-    <input
-        name="video_url"
-        style="width:500px;"
-        required>
-
-    <br><br>
-
-    <button>
-        Add Video
-    </button>
-
-</form>
-
-<hr>
-
-<h2>
-Add Text Notes
-</h2>
-
-<form method="POST"
-      action="/add-notes-resource/{{ session_id }}">
-
-    Title
-
-    <br>
-
-    <input
-        name="title"
-        required>
-
-    <br><br>
-
-    Notes
-
-    <br>
-
-    <textarea
-        name="notes"
-        rows="7"
-        cols="80"
-        required>
-    </textarea>
-
-    <br><br>
-
-    <button>
-        Add Notes
-    </button>
-
-</form>
-
-<hr>
-
-<h2>
-Uploaded Resources
-</h2>
-
-{% if resources|length == 0 %}
-
-<p>
-No resources uploaded yet.
-</p>
-
-{% endif %}
-
-{% for r in resources %}
-
-<div style="
-border:1px solid #ccc;
-padding:12px;
-margin-bottom:12px;
-border-radius:8px;
-">
-
-<b>
-{{ r[1] }}
-</b>
-
-<br>
-
-Type:
-{{ r[2] }}
-
-<br><br>
-
-{% if r[2] == "PDF" %}
-
-<a href="/{{ r[3] }}"
-target="_blank">
-Open PDF
-</a>
-
-{% endif %}
-
-{% if r[2] == "PPT" %}
-
-<a href="/{{ r[3] }}"
-target="_blank">
-Open PPT
-</a>
-
-{% endif %}
-
-{% if r[2] == "IMAGE" %}
-
-<a href="/{{ r[3] }}"
-target="_blank">
-Open Image
-</a>
-
-{% endif %}
-
-{% if r[2] == "VIDEO" %}
-
-<a href="{{ r[4] }}"
-target="_blank">
-Open Video
-</a>
-
-{% endif %}
-
-{% if r[2] == "NOTES" %}
-
-<p>
-{{ r[5] }}
-</p>
-
-{% endif %}
-
-<br><br>
-
-<a href="/delete-resource/{{ r[0] }}/{{ session_id }}">
-Delete Resource
-</a>
-
+<div class="header">
+    <h1>{{ session_name }} Resources</h1>
 </div>
 
-{% endfor %}
+<div class="container">
+
+    <div class="section links">
+        <a href="/teacher-session/{{ session_id }}">Back to Session</a>
+        <a href="/teacher-dashboard">Teacher Dashboard</a>
+    </div>
+
+    <div class="student-hero">
+
+        <h1>Learning Resources</h1>
+
+        <p>
+            Upload PDFs, PPTs, images, video links, and notes for students.
+            Everything added here will appear on the student page.
+        </p>
+
+    </div>
+
+    <div class="resource-form-grid">
+
+        <div class="resource-form-card">
+
+            <div class="resource-big-icon">
+                📄
+            </div>
+
+            <h2>Upload File</h2>
+
+            <p class="small-text">
+                Upload PDF, PPT, or image resources.
+            </p>
+
+            <form method="POST"
+                  action="/upload-resource/{{ session_id }}"
+                  enctype="multipart/form-data">
+
+                <label>Title</label>
+                <br>
+
+                <input
+                    class="full-width-input"
+                    type="text"
+                    name="title"
+                    placeholder="Example: Newton Laws PDF"
+                    required>
+
+                <br><br>
+
+                <label>Resource Type</label>
+                <br>
+
+                <select
+                    class="full-width-input"
+                    name="resource_type"
+                    required>
+
+                    <option value="PDF">PDF</option>
+                    <option value="PPT">PPT / PPTX</option>
+                    <option value="IMAGE">Image</option>
+
+                </select>
+
+                <br><br>
+
+                <label>Choose File</label>
+                <br>
+
+                <input
+                    class="full-width-input"
+                    type="file"
+                    name="file"
+                    required>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Upload Resource
+                </button>
+
+            </form>
+
+        </div>
+
+        <div class="resource-form-card">
+
+            <div class="resource-big-icon">
+                🎥
+            </div>
+
+            <h2>Add Video Link</h2>
+
+            <p class="small-text">
+                Add YouTube or other video learning links.
+            </p>
+
+            <form method="POST"
+                  action="/add-video-resource/{{ session_id }}">
+
+                <label>Title</label>
+                <br>
+
+                <input
+                    class="full-width-input"
+                    type="text"
+                    name="title"
+                    placeholder="Example: Light Reflection Video"
+                    required>
+
+                <br><br>
+
+                <label>Video / YouTube Link</label>
+                <br>
+
+                <input
+                    class="full-width-input"
+                    type="url"
+                    name="video_url"
+                    placeholder="https://youtube.com/..."
+                    required>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Add Video
+                </button>
+
+            </form>
+
+        </div>
+
+        <div class="resource-form-card">
+
+            <div class="resource-big-icon">
+                📝
+            </div>
+
+            <h2>Add Text Notes</h2>
+
+            <p class="small-text">
+                Share short notes or important points.
+            </p>
+
+            <form method="POST"
+                  action="/add-notes-resource/{{ session_id }}">
+
+                <label>Title</label>
+                <br>
+
+                <input
+                    class="full-width-input"
+                    type="text"
+                    name="title"
+                    placeholder="Example: Important formulas"
+                    required>
+
+                <br><br>
+
+                <label>Notes</label>
+                <br>
+
+                <textarea
+                    name="notes"
+                    class="full-width-input"
+                    placeholder="Write notes here..."
+                    required></textarea>
+
+                <br><br>
+
+                <button class="primary-btn">
+                    Add Notes
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <div class="page-title-row">
+            <h2>Uploaded Resources</h2>
+            <span class="badge">Total: {{ resources|length }}</span>
+        </div>
+
+        {% if resources|length == 0 %}
+
+        <div class="student-empty">
+            No resources uploaded yet.
+        </div>
+
+        {% endif %}
+
+        <div class="resource-grid">
+
+            {% for r in resources %}
+
+            <div class="modern-resource-card">
+
+                <div class="resource-top">
+
+                    {% if r[2] == "PDF" %}
+                    <div class="resource-icon">📕</div>
+                    {% elif r[2] == "PPT" %}
+                    <div class="resource-icon">📊</div>
+                    {% elif r[2] == "IMAGE" %}
+                    <div class="resource-icon">🖼️</div>
+                    {% elif r[2] == "VIDEO" %}
+                    <div class="resource-icon">🎥</div>
+                    {% else %}
+                    <div class="resource-icon">📝</div>
+                    {% endif %}
+
+                    <div>
+                        <h3>{{ r[1] }}</h3>
+                        <span class="badge">{{ r[2] }}</span>
+                    </div>
+
+                </div>
+
+                {% if r[5] %}
+
+                <p class="resource-notes">
+                    {{ r[5] }}
+                </p>
+
+                {% else %}
+
+                <p class="small-text">
+                    Resource added for this classroom session.
+                </p>
+
+                {% endif %}
+
+                <div class="action-row">
+
+                    {% if r[2] == "VIDEO" %}
+
+                    <a class="btn" href="{{ r[4] }}" target="_blank">
+                        Open Video
+                    </a>
+
+                    {% elif r[2] == "PDF" %}
+
+                    <a class="btn" href="/{{ r[3] }}" target="_blank">
+                        Open PDF
+                    </a>
+
+                    {% elif r[2] == "PPT" %}
+
+                    <a class="btn" href="/{{ r[3] }}" target="_blank">
+                        Open PPT
+                    </a>
+
+                    {% elif r[2] == "IMAGE" %}
+
+                    <a class="btn" href="/{{ r[3] }}" target="_blank">
+                        Open Image
+                    </a>
+
+                    {% endif %}
+
+                    <a class="btn btn-red"
+                       href="/delete-resource/{{ r[0] }}/{{ session_id }}"
+                       onclick="return confirm('Delete this resource?')">
+                        Delete
+                    </a>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+</div>
 
 </body>
 </html>

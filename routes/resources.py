@@ -7,11 +7,10 @@ from flask import (
     session
 )
 
-from werkzeug.utils import secure_filename
-
 import sqlite3
 import os
 import time
+from werkzeug.utils import secure_filename
 
 
 # =====================================
@@ -19,7 +18,6 @@ import time
 # =====================================
 
 def teacher_logged_in():
-
     return "teacher_id" in session
 
 
@@ -31,7 +29,9 @@ def teacher_owns_session(session_id):
 
     row = conn.execute(
         """
-        SELECT id
+        SELECT
+            id,
+            session_name
         FROM sessions
         WHERE id=?
         AND teacher_id=?
@@ -44,47 +44,11 @@ def teacher_owns_session(session_id):
 
     conn.close()
 
-    return row is not None
-
-
-def save_uploaded_file(file, resource_type):
-
-    original_name = secure_filename(file.filename)
-
-    timestamp = str(int(time.time()))
-
-    filename = timestamp + "_" + original_name
-
-    if resource_type == "PDF":
-
-        folder = "uploads/pdf"
-
-    elif resource_type == "PPT":
-
-        folder = "uploads/ppt"
-
-    elif resource_type == "IMAGE":
-
-        folder = "uploads/images"
-
-    else:
-
-        folder = "uploads"
-
-    os.makedirs(folder, exist_ok=True)
-
-    full_path = os.path.join(
-        folder,
-        filename
-    )
-
-    file.save(full_path)
-
-    return full_path.replace("\\", "/")
+    return row
 
 
 # =====================================
-# RESOURCE PAGE
+# TEACHER RESOURCES PAGE
 # =====================================
 
 @app.route("/teacher-resources/<session_id>")
@@ -93,8 +57,17 @@ def teacher_resources(session_id):
     if not teacher_logged_in():
         return redirect("/teacher-login")
 
-    if not teacher_owns_session(session_id):
-        return "Not allowed"
+    session_row = teacher_owns_session(session_id)
+
+    if not session_row:
+        return render_template(
+            "message.html",
+            title="Access Denied",
+            message="You are not allowed to access resources for this session.",
+            box_class="warning",
+            button_text="Go to Teacher Dashboard",
+            button_link="/teacher-dashboard"
+        )
 
     conn = sqlite3.connect("database.db")
 
@@ -119,6 +92,7 @@ def teacher_resources(session_id):
     return render_template(
         "teacher/resources.html",
         session_id=session_id,
+        session_name=session_row[1],
         resources=resources
     )
 
@@ -136,21 +110,58 @@ def upload_resource(session_id):
     if not teacher_logged_in():
         return redirect("/teacher-login")
 
-    if not teacher_owns_session(session_id):
+    session_row = teacher_owns_session(session_id)
+
+    if not session_row:
         return "Not allowed"
 
-    title = request.form["title"]
-    resource_type = request.form["resource_type"]
+    title = request.form["title"].strip()
+    resource_type = request.form["resource_type"].strip()
 
-    file = request.files.get("file")
+    uploaded_file = request.files.get("file")
 
-    if not file or file.filename == "":
-        return "No file selected"
+    if not uploaded_file or uploaded_file.filename == "":
+        return redirect(
+            f"/teacher-resources/{session_id}"
+        )
 
-    file_path = save_uploaded_file(
-        file,
-        resource_type
+    original_filename = secure_filename(
+        uploaded_file.filename
     )
+
+    ext = original_filename.rsplit(".", 1)[-1].lower()
+
+    folder = ""
+
+    if resource_type == "PDF":
+        folder = "uploads/pdf"
+
+    elif resource_type == "PPT":
+        folder = "uploads/ppt"
+
+    elif resource_type == "IMAGE":
+        folder = "uploads/images"
+
+    else:
+        return redirect(
+            f"/teacher-resources/{session_id}"
+        )
+
+    os.makedirs(
+        folder,
+        exist_ok=True
+    )
+
+    filename = f"{int(time.time())}_{original_filename}"
+
+    save_path = os.path.join(
+        folder,
+        filename
+    )
+
+    uploaded_file.save(save_path)
+
+    file_path = save_path.replace("\\", "/")
 
     conn = sqlite3.connect("database.db")
 
@@ -160,15 +171,19 @@ def upload_resource(session_id):
             session_id,
             title,
             resource_type,
-            file_path
+            file_path,
+            video_url,
+            notes
         )
-        VALUES(?,?,?,?)
+        VALUES(?,?,?,?,?,?)
         """,
         (
             session_id,
             title,
             resource_type,
-            file_path
+            file_path,
+            "",
+            ""
         )
     )
 
@@ -181,7 +196,7 @@ def upload_resource(session_id):
 
 
 # =====================================
-# ADD VIDEO LINK
+# ADD VIDEO RESOURCE
 # =====================================
 
 @app.route(
@@ -193,11 +208,13 @@ def add_video_resource(session_id):
     if not teacher_logged_in():
         return redirect("/teacher-login")
 
-    if not teacher_owns_session(session_id):
+    session_row = teacher_owns_session(session_id)
+
+    if not session_row:
         return "Not allowed"
 
-    title = request.form["title"]
-    video_url = request.form["video_url"]
+    title = request.form["title"].strip()
+    video_url = request.form["video_url"].strip()
 
     conn = sqlite3.connect("database.db")
 
@@ -207,15 +224,19 @@ def add_video_resource(session_id):
             session_id,
             title,
             resource_type,
-            video_url
+            file_path,
+            video_url,
+            notes
         )
-        VALUES(?,?,?,?)
+        VALUES(?,?,?,?,?,?)
         """,
         (
             session_id,
             title,
             "VIDEO",
-            video_url
+            "",
+            video_url,
+            ""
         )
     )
 
@@ -228,7 +249,7 @@ def add_video_resource(session_id):
 
 
 # =====================================
-# ADD NOTES
+# ADD TEXT NOTES RESOURCE
 # =====================================
 
 @app.route(
@@ -240,11 +261,13 @@ def add_notes_resource(session_id):
     if not teacher_logged_in():
         return redirect("/teacher-login")
 
-    if not teacher_owns_session(session_id):
+    session_row = teacher_owns_session(session_id)
+
+    if not session_row:
         return "Not allowed"
 
-    title = request.form["title"]
-    notes = request.form["notes"]
+    title = request.form["title"].strip()
+    notes = request.form["notes"].strip()
 
     conn = sqlite3.connect("database.db")
 
@@ -254,14 +277,18 @@ def add_notes_resource(session_id):
             session_id,
             title,
             resource_type,
+            file_path,
+            video_url,
             notes
         )
-        VALUES(?,?,?,?)
+        VALUES(?,?,?,?,?,?)
         """,
         (
             session_id,
             title,
             "NOTES",
+            "",
+            "",
             notes
         )
     )
@@ -278,18 +305,39 @@ def add_notes_resource(session_id):
 # DELETE RESOURCE
 # =====================================
 
-@app.route(
-    "/delete-resource/<resource_id>/<session_id>"
-)
+@app.route("/delete-resource/<resource_id>/<session_id>")
 def delete_resource(resource_id, session_id):
 
     if not teacher_logged_in():
         return redirect("/teacher-login")
 
-    if not teacher_owns_session(session_id):
+    session_row = teacher_owns_session(session_id)
+
+    if not session_row:
         return "Not allowed"
 
     conn = sqlite3.connect("database.db")
+
+    resource = conn.execute(
+        """
+        SELECT file_path
+        FROM resources
+        WHERE id=?
+        AND session_id=?
+        """,
+        (
+            resource_id,
+            session_id
+        )
+    ).fetchone()
+
+    if resource and resource[0]:
+
+        try:
+            if os.path.exists(resource[0]):
+                os.remove(resource[0])
+        except:
+            pass
 
     conn.execute(
         """

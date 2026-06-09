@@ -3,50 +3,73 @@
 
 <head>
     <title>Create Teacher</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Create Teacher</h1>
+<div class="header">
+    <h1>Create Teacher</h1>
+</div>
 
-<form method="POST">
+<div class="container">
 
-    Name
+    <div class="section links">
+        <a href="/admin-dashboard">Dashboard</a>
+        <a href="/admin-teachers">Teachers</a>
+    </div>
 
-    <br>
+    <div class="section clean-form-card">
 
-    <input
-        name="name"
-        required>
+        <h2>New Teacher Account</h2>
 
-    <br><br>
+        <form method="POST">
 
-    Username
+            <label>Teacher Name</label>
+            <br>
 
-    <br>
+            <input
+                class="full-width-input"
+                type="text"
+                name="name"
+                placeholder="Enter teacher name"
+                required>
 
-    <input
-        name="username"
-        required>
+            <br><br>
 
-    <br><br>
+            <label>Username</label>
+            <br>
 
-    Password
+            <input
+                class="full-width-input"
+                type="text"
+                name="username"
+                placeholder="Enter login username"
+                required>
 
-    <br>
+            <br><br>
 
-    <input
-        type="password"
-        name="password"
-        required>
+            <label>Password</label>
+            <br>
 
-    <br><br>
+            <input
+                class="full-width-input"
+                type="password"
+                name="password"
+                placeholder="Enter password"
+                required>
 
-    <button>
-        Create Teacher
-    </button>
+            <br><br>
 
-</form>
+            <button class="primary-btn">
+                Create Teacher
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
 
 </body>
 </html>

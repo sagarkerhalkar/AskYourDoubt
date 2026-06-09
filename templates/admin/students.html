@@ -3,30 +3,62 @@
 
 <head>
     <title>Students</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-<h1>Students</h1>
+<div class="header">
+    <h1>Students</h1>
+</div>
 
-{% for student in students %}
+<div class="container">
 
-<hr>
+    <div class="section links">
+        <a href="/admin-dashboard">Dashboard</a>
+        <a href="/admin-export-students">Download Students</a>
+    </div>
 
-ID :
-{{ student[0] }}
+    <div class="section">
 
-<br>
+        <div class="page-title-row">
+            <h2>Student Records</h2>
+            <span class="badge">Total: {{ students|length }}</span>
+        </div>
 
-Name :
-{{ student[1] }}
+        {% if students|length == 0 %}
 
-<br>
+        <div class="student-empty">
+            No students found.
+        </div>
 
-Mobile :
-{{ student[2] }}
+        {% else %}
 
-{% endfor %}
+        <table class="table">
+
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Mobile</th>
+            </tr>
+
+            {% for student in students %}
+
+            <tr>
+                <td>{{ student[0] }}</td>
+                <td><b>{{ student[1] }}</b></td>
+                <td>{{ student[2] }}</td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+        {% endif %}
+
+    </div>
+
+</div>
 
 </body>
 </html>

@@ -3,10 +3,7 @@
 
 <head>
     <title>Admin Dashboard</title>
-
-    <link rel="stylesheet"
-          href="/static/css/style.css">
-
+    <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -57,33 +54,103 @@
 
     </div>
 
-    <div class="section links">
+    <div class="section">
 
         <h2>Management</h2>
 
-        <a href="/admin-create-teacher">Create Teacher</a>
-        <a href="/admin-teachers">Teachers</a>
-        <a href="/admin-sessions">Sessions</a>
-        <a href="/admin-students">Students</a>
-        <a href="/admin-doubts">Doubts</a>
-        <a href="/admin-teacher-activity">Teacher Activity</a>
-        <a href="/admin-category-analytics">Category Analytics</a>
-        <a href="/admin-keyword-analytics">Keyword Analytics</a>
-        <a href="/admin-question-bank">Question Bank</a>
-        <a href="/admin-change-password">Change Admin Password</a>
+        <div class="admin-nav-grid">
+
+            <a class="admin-nav-card" href="/admin-create-teacher">
+                <b>Create Teacher</b>
+                <span>Add new teacher account</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-teachers">
+                <b>Teachers</b>
+                <span>Manage teacher accounts</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-sessions">
+                <b>Sessions</b>
+                <span>View all class sessions</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-students">
+                <b>Students</b>
+                <span>View joined students</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-doubts">
+                <b>Doubts</b>
+                <span>All submitted questions</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-teacher-activity">
+                <b>Teacher Activity</b>
+                <span>Login and action history</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-category-analytics">
+                <b>Category Analytics</b>
+                <span>Questions by subject</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-keyword-analytics">
+                <b>Keyword Analytics</b>
+                <span>Most asked topics</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-question-bank">
+                <b>Question Bank</b>
+                <span>Reusable question repository</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-change-password">
+                <b>Change Password</b>
+                <span>Update admin password</span>
+            </a>
+
+        </div>
 
     </div>
 
-    <div class="section links">
+    <div class="section">
 
         <h2>Downloads</h2>
 
-        <a href="/admin-export-all-questions">All Questions</a>
-        <a href="/admin-export-sessions">Session Summary</a>
-        <a href="/admin-export-teachers">Teacher Summary</a>
-        <a href="/admin-export-students">Students</a>
-        <a href="/admin-export-analytics">Analytics Summary</a>
-        <a href="/admin-export-full-data">Full Data ZIP</a>
+        <div class="admin-nav-grid">
+
+            <a class="admin-nav-card" href="/admin-export-all-questions">
+                <b>All Questions</b>
+                <span>Complete question export</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-export-sessions">
+                <b>Session Summary</b>
+                <span>Session-wise full data</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-export-teachers">
+                <b>Teacher Summary</b>
+                <span>Teacher-wise full data</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-export-students">
+                <b>Students</b>
+                <span>Student data export</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-export-analytics">
+                <b>Analytics</b>
+                <span>Category and keyword report</span>
+            </a>
+
+            <a class="admin-nav-card" href="/admin-export-full-data">
+                <b>Full ZIP</b>
+                <span>Download complete data</span>
+            </a>
+
+        </div>
 
     </div>
 
