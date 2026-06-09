@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>All Doubts</title>
+</head>
+
+<body>
+
+<h1>All Doubts</h1>
+
+{% for doubt in doubts %}
+
+<hr>
+
+ID :
+{{ doubt[0] }}
+
+<br>
+
+Category :
+{{ doubt[2] }}
+
+<br>
+
+Keyword :
+{{ doubt[3] }}
+
+<br>
+
+Votes :
+{{ doubt[4] }}
+
+<br>
+
+Status :
+{{ doubt[5] }}
+
+<br><br>
+
+{{ doubt[1] }}
+
+{% endfor %}
+
+</body>
+</html>

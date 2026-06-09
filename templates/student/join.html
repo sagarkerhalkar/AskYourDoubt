@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Join Session</title>
+</head>
+
+<body>
+
+<h1>Join Session</h1>
+
+<form method="POST"
+      action="/student-join/{{ session_id }}">
+
+    Name
+
+    <br>
+
+    <input
+        type="text"
+        name="name"
+        required>
+
+    <br><br>
+
+    Mobile
+
+    <br>
+
+    <input
+        type="text"
+        name="mobile"
+        required>
+
+    <br><br>
+
+    <button>
+        Join Session
+    </button>
+
+</form>
+
+</body>
+</html>

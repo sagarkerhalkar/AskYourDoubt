@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Students</title>
+</head>
+
+<body>
+
+<h1>Students</h1>
+
+{% for student in students %}
+
+<hr>
+
+ID :
+{{ student[0] }}
+
+<br>
+
+Name :
+{{ student[1] }}
+
+<br>
+
+Mobile :
+{{ student[2] }}
+
+{% endfor %}
+
+</body>
+</html>

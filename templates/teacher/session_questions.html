@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>
+Session {{ session_id }}
+</title>
+
+<meta http-equiv="refresh"
+      content="10">
+
+</head>
+
+<body>
+
+<div style="
+position:fixed;
+top:10px;
+right:10px;
+border:1px solid black;
+padding:10px;
+background:white;
+">
+
+<img
+src="/static/qr/session_{{ session_id }}.png"
+width="150">
+
+<br>
+
+Session {{ session_id }}
+
+</div>
+
+<h1>
+Session {{ session_id }}
+</h1>
+
+<h3>
+Students Joined :
+{{ total_students }}
+</h3>
+
+<a href="/teacher-keywords/{{ session_id }}">
+Keyword Analysis
+</a>
+
+&nbsp;&nbsp;&nbsp;
+
+<a href="/teacher-categories/{{ session_id }}">
+Category Analysis
+</a>
+
+<hr>
+
+{% if doubts|length == 0 %}
+
+<h3>
+No Questions Yet
+</h3>
+
+{% endif %}
+
+{% for doubt in doubts %}
+
+<hr>
+
+<b>Doubt ID:</b>
+{{ doubt[0] }}
+
+<br>
+
+<b>Category:</b>
+{{ doubt[2] }}
+
+<br>
+
+<b>Votes:</b>
+{{ doubt[3] }}
+
+<br>
+
+<b>Status:</b>
+{{ doubt[4] }}
+
+<br><br>
+
+{{ doubt[1] }}
+
+<br><br>
+
+<a href="/complete-doubt/{{ doubt[0] }}">
+Mark Completed
+</a>
+
+&nbsp;&nbsp;&nbsp;
+
+<a href="/skip-doubt/{{ doubt[0] }}">
+Skip
+</a>
+
+{% endfor %}
+
+</body>
+</html>
