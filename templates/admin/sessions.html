@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Sessions</title>
+</head>
+
+<body>
+
+<h1>Sessions</h1>
+
+{% for row in rows %}
+
+<hr>
+
+Session ID :
+{{ row[0] }}
+
+<br>
+
+Session :
+{{ row[1] }}
+
+<br>
+
+Duration :
+{{ row[2] }}
+
+Minutes
+
+<br>
+
+Teacher :
+{{ row[3] }}
+
+<br><br>
+
+<a href="/admin-session-students/{{ row[0] }}">
+View Students
+</a>
+
+{% endfor %}
+
+</body>
+</html>

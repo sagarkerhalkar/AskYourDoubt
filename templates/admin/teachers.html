@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Teachers</title>
+</head>
+
+<body>
+
+<h1>Teachers</h1>
+
+{% for teacher in teachers %}
+
+<hr>
+
+ID :
+{{ teacher[0] }}
+
+<br>
+
+Name :
+{{ teacher[1] }}
+
+<br>
+
+Username :
+{{ teacher[2] }}
+
+<br>
+
+Status :
+{{ teacher[3] }}
+
+{% endfor %}
+
+</body>
+</html>
