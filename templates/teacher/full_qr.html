@@ -1,0 +1,22 @@
+{% extends 'public/base.html' %}
+{% block title %}Full Screen QR — {{ class_session.session_name }}{% endblock %}
+{% block body %}
+<main class="full-qr full-qr-v13">
+  <section class="full-qr-card">
+    <div class="full-qr-orb orb-a"></div><div class="full-qr-orb orb-b"></div>
+    <span class="live-badge"><span class="pulse-dot"></span> Student Join</span>
+    <h1>{{ class_session.session_name }}</h1>
+    <p>Students can scan this QR code or open the link below.</p>
+    <div class="full-qr-frame"><img id="fullQrImage" src="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" alt="Student QR"></div>
+    <div class="form-group"><input id="fullJoinLink" class="input" readonly value="{{ join_url }}"></div>
+    <div class="full-qr-actions">
+      <button class="btn" data-copy-target="#fullJoinLink">Copy Link</button>
+      <a class="btn secondary" href="{{ url_for('teacher.download_qr',session_id=class_session.id) }}">Download QR</a>
+      <button class="btn secondary" type="button" data-share-qr data-qr-url="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" data-join-url="{{ join_url }}" data-file-name="{{ class_session.session_name|replace(' ', '_') }}_QR.png">Share QR</button>
+      <button class="btn orange" onclick="window.print()">Print QR</button>
+      <a class="btn secondary" href="{{ url_for('teacher.live_session',session_id=class_session.id) }}">Back to Session</a>
+    </div>
+    <small>On supported phones and tablets, Share QR opens the native sharing panel. On unsupported browsers, the QR downloads and the join link is copied.</small>
+  </section>
+</main>
+{% endblock %}

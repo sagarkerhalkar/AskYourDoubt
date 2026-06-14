@@ -1,0 +1,79 @@
+{% extends 'teacher/base.html' %}
+{% block title %}Resources — {{ class_session.session_name }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow">Session Resource Studio</span>
+    <h1>{{ class_session.session_name }} Resources</h1>
+    <p>Share documents, presentations, images, videos, or written notes. Students can open shared resources directly.</p>
+  </div>
+  <a class="btn secondary" href="{{ url_for('teacher.live_session',session_id=class_session.id) }}">Back to Live Session</a>
+</section>
+
+<section class="resource-studio">
+  <form class="resource-form" method="post" enctype="multipart/form-data">
+    <div class="resource-type-icon">📄</div>
+    <h3>Upload a file</h3>
+    <p>PDF, Word, text, image, PowerPoint, or WebP. Maximum 10 MB.</p>
+    <div class="form-group"><label>Resource title</label><input class="input" name="title" required placeholder="Example: Chapter 4 revision notes"></div>
+    <div class="form-group"><label>Choose file</label><input type="file" name="file" required accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp,.ppt,.pptx"></div>
+    <input type="hidden" name="resource_type" value="FILE">
+    <button class="btn" type="submit">Upload & Share</button>
+  </form>
+
+  <form class="resource-form" method="post">
+    <div class="resource-type-icon">🎬</div>
+    <h3>Share a video</h3>
+    <p>Add a YouTube or secure video URL for students to open.</p>
+    <div class="form-group"><label>Video title</label><input class="input" name="title" required placeholder="Example: Newton's laws explained"></div>
+    <div class="form-group"><label>Video URL</label><input class="input" type="url" name="video_url" required placeholder="https://..."></div>
+    <input type="hidden" name="resource_type" value="VIDEO">
+    <button class="btn" type="submit">Share Video</button>
+  </form>
+
+  <form class="resource-form" method="post">
+    <div class="resource-type-icon">📝</div>
+    <h3>Publish a note</h3>
+    <p>Write a short explanation, formula, instruction, or summary.</p>
+    <div class="form-group"><label>Note title</label><input class="input" name="title" required placeholder="Example: Important exam instructions"></div>
+    <div class="form-group"><label>Note</label><textarea name="notes" required placeholder="Write the note students should see..."></textarea></div>
+    <input type="hidden" name="resource_type" value="NOTE">
+    <button class="btn" type="submit">Publish Note</button>
+  </form>
+</section>
+
+<section class="panel" style="margin-top:18px">
+  <div class="doubt-row">
+    <div>
+      <h2>Shared resources</h2>
+      <p class="muted">Every item below is available to students in this session.</p>
+    </div>
+    <span class="pill">{{ pager.total if pager else resources|length }} items</span>
+  </div>
+  <div class="resource-grid" style="margin-top:16px">
+    {% for r in resources %}
+    <article class="resource-card">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div class="resource-type-icon">
+          {% if r.resource_type == 'VIDEO' %}🎬{% elif r.resource_type == 'NOTE' %}📝{% elif r.resource_type in ['PDF'] %}📕{% elif r.resource_type in ['JPG','JPEG','PNG','WEBP'] %}🖼️{% elif r.resource_type in ['PPT','PPTX'] %}📊{% else %}📄{% endif %}
+        </div>
+        <div style="min-width:0;flex:1">
+          <span class="pill">{{ r.resource_type }}</span>
+          <h3 style="margin:9px 0 6px">{{ r.title }}</h3>
+          {% if r.notes %}<p class="muted">{{ r.notes }}</p>{% endif %}
+        </div>
+      </div>
+      <div class="doubt-actions" style="margin-top:12px">
+        {% if r.file_path or r.video_url %}<a class="btn small" href="{{ url_for('teacher.open_resource',resource_id=r.id) }}" target="_blank" rel="noopener">Open</a>{% endif %}
+        <form method="post" action="{{ url_for('teacher.delete_resource',resource_id=r.id) }}" onsubmit="return confirm('Delete this resource?')">
+          <button class="btn small danger">Delete</button>
+        </form>
+      </div>
+    </article>
+    {% else %}
+    <div class="empty">No resources shared yet. Use one of the options above.</div>
+    {% endfor %}
+  </div>
+  {% include 'partials/pagination.html' %}
+</section>
+{% endblock %}

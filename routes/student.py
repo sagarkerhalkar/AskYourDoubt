@@ -1,375 +1,237 @@
-from extensions import app
+from __future__ import annotations
 
-from flask import (
-    render_template,
-    request,
-    redirect,
-    session
-)
+from datetime import datetime
+from pathlib import Path
 
-import sqlite3
+from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, session, url_for
 
+from auth import student_required
+from db import get_db, transaction
+from utils import detect_category_and_keyword, save_upload, validate_mobile
 
-# =====================================
-# CATEGORY DETECTION
-# =====================================
-
-def detect_category(question):
-
-    q = question.lower()
-
-    if any(word in q for word in [
-        "force",
-        "motion",
-        "newton",
-        "velocity",
-        "acceleration",
-        "physics"
-    ]):
-        return "Physics"
-
-    if any(word in q for word in [
-        "math",
-        "equation",
-        "quadratic",
-        "algebra",
-        "geometry",
-        "trigonometry"
-    ]):
-        return "Mathematics"
-
-    if any(word in q for word in [
-        "atom",
-        "molecule",
-        "reaction",
-        "chemistry"
-    ]):
-        return "Chemistry"
-
-    if any(word in q for word in [
-        "cell",
-        "biology",
-        "human body",
-        "uterus"
-    ]):
-        return "Biology"
-
-    return "General"
+bp = Blueprint('student', __name__)
 
 
-# =====================================
-# JOIN SESSION
-# =====================================
-
-@app.route("/join-session/<session_id>")
-def join_session(session_id):
-
-    return render_template(
-        "student/join.html",
-        session_id=session_id
-    )
-
-
-# =====================================
-# STUDENT JOIN
-# =====================================
-
-@app.route(
-    "/student-join/<session_id>",
-    methods=["POST"]
-)
-def student_join(session_id):
-
-    name = request.form["name"]
-    mobile = request.form["mobile"]
-
-    conn = sqlite3.connect("database.db")
-
-    existing = conn.execute(
-        """
-        SELECT id
-        FROM students
-        WHERE mobile=?
-        """,
-        (mobile,)
+def _session_row(session_id: int):
+    return get_db().execute(
+        '''
+        SELECT s.*, t.name AS teacher_name
+        FROM sessions s
+        JOIN teachers t ON t.id=s.teacher_id
+        WHERE s.id=?
+        ''',
+        (session_id,),
     ).fetchone()
 
-    if existing:
 
-        student_id = existing[0]
+def _student_can_access(session_id: int) -> bool:
+    return session.get('student_id') and int(session.get('student_session_id', 0)) == int(session_id)
 
-    else:
 
-        conn.execute(
-            """
-            INSERT INTO students(
-                name,
-                mobile
-            )
-            VALUES(?,?)
-            """,
-            (
-                name,
-                mobile
-            )
+@bp.route('/join-session/<int:session_id>', methods=['GET', 'POST'])
+def join(session_id: int):
+    row = _session_row(session_id)
+    if not row:
+        return render_template('student/closed.html', title='Session not found', message='This doubt session is not available.'), 404
+    if row['status'] != 'ACTIVE':
+        session.pop('student_id', None)
+        session.pop('student_session_id', None)
+        return render_template(
+            'student/closed.html',
+            title='Session is closed',
+            message='Please wait until your teacher shares an active QR code or link.',
+            session_name=row['session_name'],
         )
 
-        conn.commit()
+    error = None
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        mobile = request.form.get('mobile', '').strip()
+        if len(name) < 2:
+            error = 'Enter your full name.'
+        elif not validate_mobile(mobile):
+            error = 'Mobile number must contain exactly 10 digits.'
+        else:
+            db = get_db()
+            student = db.execute('SELECT id FROM students WHERE mobile=? ORDER BY id DESC LIMIT 1', (mobile,)).fetchone()
+            with transaction() as tx:
+                if student:
+                    student_id = student['id']
+                    tx.execute('UPDATE students SET name=? WHERE id=?', (name, student_id))
+                else:
+                    cur = tx.execute('INSERT INTO students(name, mobile) VALUES(?,?)', (name, mobile))
+                    student_id = cur.lastrowid
+                tx.execute(
+                    'INSERT OR IGNORE INTO session_students(session_id, student_id) VALUES(?,?)',
+                    (session_id, student_id),
+                )
+            session.clear()
+            session.permanent = True
+            session['student_id'] = student_id
+            session['student_name'] = name
+            session['student_mobile'] = mobile
+            session['student_session_id'] = session_id
+            session['student_active_tab'] = 'ask'
+            return redirect(url_for('student.portal', session_id=session_id))
 
-        student_id = conn.execute(
-            "SELECT last_insert_rowid()"
-        ).fetchone()[0]
+    return render_template('student/join.html', class_session=row, error=error)
 
-    link_exists = conn.execute(
-        """
-        SELECT id
-        FROM session_students
-        WHERE session_id=?
-        AND student_id=?
-        """,
-        (
-            session_id,
-            student_id
+
+@bp.route('/student/session/<int:session_id>')
+@student_required
+def portal(session_id: int):
+    if not _student_can_access(session_id):
+        return redirect(url_for('student.join', session_id=session_id))
+    class_session = _session_row(session_id)
+    if not class_session or class_session['status'] != 'ACTIVE':
+        session.pop('student_id', None)
+        session.pop('student_session_id', None)
+        return render_template(
+            'student/closed.html',
+            title='This doubt session has ended',
+            message='Your teacher has closed this session. Please wait for a new QR code or link.',
+            session_name=class_session['session_name'] if class_session else '',
         )
-    ).fetchone()
 
-    if not link_exists:
-
-        conn.execute(
-            """
-            INSERT INTO session_students(
-                session_id,
-                student_id
-            )
-            VALUES(?,?)
-            """,
-            (
-                session_id,
-                student_id
-            )
-        )
-
-        conn.commit()
-
-    conn.close()
-
-    session["student_id"] = student_id
-    session["mobile"] = mobile
-    session["session_id"] = session_id
-
-    return redirect(
-        f"/student-doubts/{session_id}"
-    )
-
-
-# =====================================
-# STUDENT DOUBTS PAGE
-# =====================================
-
-@app.route("/student-doubts/<session_id>")
-def student_doubts(session_id):
-
-    conn = sqlite3.connect("database.db")
-
-    doubts = conn.execute(
-        """
-        SELECT
-            id,
-            question,
-            votes,
-            status
-        FROM doubts
-        WHERE session_id=?
-        AND status='OPEN'
-        ORDER BY votes DESC,id DESC
-        """,
-        (session_id,)
+    db = get_db()
+    count = db.execute(
+        'SELECT COUNT(*) AS c FROM doubts WHERE session_id=? AND student_id=?',
+        (session_id, session['student_id']),
+    ).fetchone()['c']
+    resources = db.execute(
+        'SELECT * FROM resources WHERE session_id=? ORDER BY id DESC',
+        (session_id,),
     ).fetchall()
-
-    resources = conn.execute(
-        """
-        SELECT
-            title,
-            resource_type,
-            file_path,
-            video_url,
-            notes
-        FROM resources
-        WHERE session_id=?
-        """,
-        (session_id,)
-    ).fetchall()
-
-    conn.close()
-
+    active_tab = request.args.get('tab') or session.get('student_active_tab', 'ask')
+    if active_tab not in {'ask', 'live', 'answered', 'resources'}:
+        active_tab = 'ask'
+    session['student_active_tab'] = active_tab
     return render_template(
-        "student/doubts.html",
-        doubts=doubts,
+        'student/portal.html',
+        class_session=class_session,
+        used=count,
+        remaining=max(int(class_session['question_limit'] or 100) - count, 0),
         resources=resources,
-        session_id=session_id
+        active_tab=active_tab,
     )
 
 
-# =====================================
-# SUBMIT DOUBT
-# =====================================
+@bp.route('/student/session/<int:session_id>/tab/<tab>')
+@student_required
+def set_tab(session_id: int, tab: str):
+    if tab in {'ask', 'live', 'answered', 'resources'}:
+        session['student_active_tab'] = tab
+    return redirect(url_for('student.portal', session_id=session_id, tab=tab))
 
-@app.route(
-    "/submit-doubt/<session_id>",
-    methods=["POST"]
-)
-def submit_doubt(session_id):
 
-    question = request.form["question"]
+@bp.route('/student/session/<int:session_id>/submit', methods=['POST'])
+@student_required
+def submit_doubt(session_id: int):
+    if not _student_can_access(session_id):
+        return redirect(url_for('student.join', session_id=session_id))
+    class_session = _session_row(session_id)
+    if not class_session or class_session['status'] != 'ACTIVE':
+        return redirect(url_for('student.portal', session_id=session_id))
 
-    student_id = session.get(
-        "student_id"
-    )
+    question = request.form.get('question', '').strip()
+    if not question:
+        flash('Question text is compulsory.', 'error')
+        session['student_active_tab'] = 'ask'
+        return redirect(url_for('student.portal', session_id=session_id, tab='ask'))
+    if len(question) > 50000:
+        flash('Question must be below 50,000 characters.', 'error')
+        return redirect(url_for('student.portal', session_id=session_id, tab='ask'))
 
-    category = detect_category(
-        question
-    )
+    db = get_db()
+    used = db.execute(
+        'SELECT COUNT(*) AS c FROM doubts WHERE session_id=? AND student_id=?',
+        (session_id, session['student_id']),
+    ).fetchone()['c']
+    if used >= int(class_session['question_limit'] or 100):
+        flash('You have reached the question limit for this session.', 'error')
+        return redirect(url_for('student.portal', session_id=session_id, tab='live'))
 
-    keyword = (
-        question.split()[0]
-        if question.strip()
-        else "General"
-    )
+    attachment_path = attachment_name = attachment_type = ''
+    uploaded = request.files.get('attachment')
+    if uploaded and uploaded.filename:
+        try:
+            attachment_path, attachment_name, attachment_type = save_upload(
+                uploaded, current_app.config['UPLOAD_DOUBTS'], resource=False
+            )
+        except ValueError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('student.portal', session_id=session_id, tab='ask'))
 
-    conn = sqlite3.connect(
-        "database.db"
-    )
-
-    duplicate = conn.execute(
-        """
-        SELECT id
-        FROM doubts
-        WHERE session_id=?
-        AND question=?
-        """,
-        (
-            session_id,
-            question
+    category, keyword = detect_category_and_keyword(question)
+    with transaction() as tx:
+        cur = tx.execute(
+            '''
+            INSERT INTO doubts(
+                session_id, student_id, question, category, keyword,
+                votes, status, attachment_path, attachment_name, attachment_type
+            ) VALUES(?,?,?,?,?,0,'OPEN',?,?,?)
+            ''',
+            (
+                session_id, session['student_id'], question, category, keyword,
+                attachment_path, attachment_name, attachment_type,
+            ),
         )
+        doubt_id = cur.lastrowid
+        tx.execute(
+            '''
+            INSERT INTO repository(
+                doubt_id, question, category, keyword, total_votes, status,
+                teacher_id, session_id, session_name, session_date, updated_at
+            ) VALUES(?,?,?,?,0,'OPEN',?,?,?,?,CURRENT_TIMESTAMP)
+            ''',
+            (
+                doubt_id, question, category, keyword, class_session['teacher_id'],
+                session_id, class_session['session_name'], class_session['created_at'],
+            ),
+        )
+    session['student_active_tab'] = 'live'
+    return redirect(url_for('student.portal', session_id=session_id, tab='live'))
+
+
+@bp.route('/student/resource/<int:resource_id>')
+@student_required
+def resource_download(resource_id: int):
+    db = get_db()
+    row = db.execute('SELECT * FROM resources WHERE id=?', (resource_id,)).fetchone()
+    if not row or int(row['session_id']) != int(session.get('student_session_id', 0)):
+        return render_template('public/error.html', code=403, title='Access denied', message='This resource is not available.'), 403
+    if row['video_url']:
+        return redirect(row['video_url'])
+    if row['file_path'] and Path(row['file_path']).exists():
+        return send_file(row['file_path'], as_attachment=True, download_name=Path(row['file_path']).name)
+    return render_template('public/error.html', code=404, title='Resource missing', message='The file is not available on the server.'), 404
+
+
+@bp.route('/student/doubt-attachment/<int:doubt_id>')
+@student_required
+def doubt_attachment(doubt_id: int):
+    db = get_db()
+    row = db.execute(
+        '''
+        SELECT d.*, s.allow_student_attachment_download
+        FROM doubts d JOIN sessions s ON s.id=d.session_id
+        WHERE d.id=?
+        ''',
+        (doubt_id,),
     ).fetchone()
-
-    if duplicate:
-
-        conn.close()
-
-        return redirect(
-            f"/student-doubts/{session_id}"
-        )
-
-    conn.execute(
-        """
-        INSERT INTO doubts(
-            session_id,
-            student_id,
-            question,
-            category,
-            keyword,
-            votes
-        )
-        VALUES(?,?,?,?,?,0)
-        """,
-        (
-            session_id,
-            student_id,
-            question,
-            category,
-            keyword
-        )
-    )
-
-    conn.commit()
-    conn.close()
-
-    return redirect(
-        f"/student-doubts/{session_id}"
-    )
+    if not row or int(row['session_id']) != int(session.get('student_session_id', 0)):
+        return render_template('public/error.html', code=403, title='Access denied', message='You cannot download this file.'), 403
+    if not row['allow_student_attachment_download']:
+        return render_template('public/error.html', code=403, title='Download disabled', message='Your teacher has not enabled student attachment downloads.'), 403
+    if row['attachment_path'] and Path(row['attachment_path']).exists():
+        return send_file(row['attachment_path'], as_attachment=True, download_name=row['attachment_name'])
+    return render_template('public/error.html', code=404, title='File missing', message='The attachment is not available.'), 404
 
 
-# =====================================
-# UPVOTE
-# =====================================
-
-@app.route(
-    "/upvote/<doubt_id>"
-)
-def upvote(doubt_id):
-
-    mobile = session.get(
-        "mobile"
-    )
-
-    session_id = session.get(
-        "session_id"
-    )
-
-    conn = sqlite3.connect(
-        "database.db"
-    )
-
-    already = conn.execute(
-        """
-        SELECT id
-        FROM doubt_votes
-        WHERE doubt_id=?
-        AND mobile=?
-        """,
-        (
-            doubt_id,
-            mobile
-        )
-    ).fetchone()
-
-    if already:
-
-        conn.close()
-
-        return redirect(
-            f"/student-doubts/{session_id}"
-        )
-
-    conn.execute(
-        """
-        INSERT INTO doubt_votes(
-            doubt_id,
-            mobile
-        )
-        VALUES(?,?)
-        """,
-        (
-            doubt_id,
-            mobile
-        )
-    )
-
-    conn.execute(
-        """
-        UPDATE doubts
-        SET votes=votes+1
-        WHERE id=?
-        """,
-        (doubt_id,)
-    )
-
-    conn.commit()
-    conn.close()
-
-    return redirect(
-        f"/student-doubts/{session_id}"
-    )
-
-
-# =====================================
-# STUDENT LOGOUT
-# =====================================
-
-@app.route("/student-logout")
-def student_logout():
-
+@bp.route('/student/logout')
+def logout():
+    student_session_id = session.get('student_session_id')
     session.clear()
-
-    return redirect("/")
+    if student_session_id:
+        return redirect(url_for('student.join', session_id=student_session_id))
+    return redirect(url_for('public.student_start'))

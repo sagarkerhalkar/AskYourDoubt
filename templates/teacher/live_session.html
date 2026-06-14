@@ -1,0 +1,211 @@
+{% extends 'teacher/base.html' %}
+{% block title %}{{ class_session.session_name }} — Live Session{% endblock %}
+{% block content %}
+<div id="teacherLive" class="live-experience teacher-live teacher-live-v13" data-session-id="{{ class_session.id }}">
+  <section class="teacher-live-hero">
+    <div class="teacher-live-identity">
+      <div class="teacher-live-mic" aria-hidden="true">
+        <span class="mic-wave wave-one"></span><span class="mic-wave wave-two"></span><span class="mic-wave wave-three"></span>
+        <span class="mic-icon">?</span>
+      </div>
+      <div>
+        <span class="teacher-live-status"><span class="pulse-dot"></span>{{ 'LIVE SESSION' if class_session.status=='ACTIVE' else 'CLOSED SESSION' }}</span>
+        <h1>{{ class_session.session_name }}</h1>
+        <p>Session #{{ class_session.id }} · Created {{ class_session.created_at }}</p>
+        <div class="teacher-session-time">
+          <span><b data-countdown="{{ class_session.ends_at }}">00:00:00</b><small>Remaining</small></span>
+          <span><b>1 sec</b><small>Silent refresh</small></span>
+          <span><b>Top votes</b><small>Priority order</small></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="teacher-3d-stage" aria-hidden="true">
+      <div class="teacher-orbit orbit-a"></div>
+      <div class="teacher-orbit orbit-b"></div>
+      <div class="teacher-avatar-3d">
+        <div class="teacher-head"></div>
+        <div class="teacher-body"></div>
+        <div class="teacher-tablet">?</div>
+        <div class="teacher-hand">☝</div>
+      </div>
+      <span class="float-symbol symbol-one">?</span>
+      <span class="float-symbol symbol-two">✓</span>
+      <span class="float-symbol symbol-three">↗</span>
+    </div>
+
+    <div class="teacher-hero-actions">
+      <a class="btn secondary" href="{{ url_for('teacher.dashboard') }}">Dashboard</a>
+      <a class="btn" href="{{ url_for('teacher.resources',session_id=class_session.id) }}">Share Resources</a>
+      <a class="btn secondary" href="{{ url_for('teacher.full_qr',session_id=class_session.id) }}">Present QR</a>
+      {% if class_session.status=='ACTIVE' %}
+      <form method="post" action="{{ url_for('teacher.close_session',session_id=class_session.id) }}"><button class="btn danger">Close Session</button></form>
+      {% else %}
+      <form method="post" action="{{ url_for('teacher.reopen_session',session_id=class_session.id) }}"><button class="btn orange">Reopen Session</button></form>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="teacher-live-grid">
+    <main class="teacher-live-main">
+      <div class="teacher-live-stats">
+        <article class="teacher-metric metric-blue"><span class="metric-icon">💬</span><div><small>Total Doubts</small><strong id="tTotal">0</strong><em>All questions</em></div></article>
+        <article class="teacher-metric metric-violet"><span class="metric-icon">🎯</span><div><small>Open Focus</small><strong id="tOpen">0</strong><em>Needs attention</em></div></article>
+        <article class="teacher-metric metric-green"><span class="metric-icon">✓</span><div><small>Completed</small><strong id="tCompleted">0</strong><em>This session</em></div></article>
+        <article class="teacher-metric metric-amber"><span class="metric-icon">★</span><div><small>Total Votes</small><strong id="tVotes">0</strong><em>Same doubts</em></div></article>
+      </div>
+
+      <section class="teacher-focus-card">
+        <header class="teacher-focus-head">
+          <div>
+            <span class="section-kicker">Live priority queue</span>
+            <h2>Open Doubts Focus</h2>
+            <p>Highest-voted doubts stay at the top. Student identity, category, and keyword remain hidden.</p>
+          </div>
+          <div class="teacher-focus-tools">
+            <span class="live-badge"><span class="pulse-dot"></span> Realtime</span>
+            <label class="teacher-size-control">Top
+              <select id="teacherPerPage" aria-label="Doubts per page">
+                <option value="100">100</option><option value="250">250</option><option value="500">500</option>
+              </select>
+            </label>
+          </div>
+        </header>
+
+        <div id="teacherOpenDoubts" class="teacher-doubt-stream">
+          <div class="empty teacher-empty"><span class="loading-sphere"></span>Connecting to live doubts…</div>
+        </div>
+
+        <footer class="teacher-live-pager" id="teacherLivePagination">
+          <button class="page-nav" id="teacherPrevPage" type="button">← Previous</button>
+          <span id="teacherPageInfo">Page 1 / 1</span>
+          <button class="page-nav" id="teacherNextPage" type="button">Next →</button>
+        </footer>
+      </section>
+
+      <div class="teacher-history-toggle">
+        <button class="history-pill completed" data-collapse="#completedDoubts" aria-expanded="false">✓ Recently Completed</button>
+        <button class="history-pill skipped" data-collapse="#skippedDoubts" aria-expanded="false">↪ Recently Skipped</button>
+      </div>
+      <section class="teacher-history-panel collapse" id="completedDoubts"><div class="history-title"><h2>Recently Completed</h2><span>Reopen any question when needed.</span></div><div id="teacherCompletedDoubts" class="doubt-list"></div></section>
+      <section class="teacher-history-panel collapse" id="skippedDoubts"><div class="history-title"><h2>Skipped Doubts</h2><span>Skipped questions stay hidden from students.</span></div><div id="teacherSkippedDoubts" class="doubt-list"></div></section>
+    </main>
+
+    <aside class="teacher-live-side">
+      <section class="teacher-control-card">
+        <header><div><span class="section-kicker">Session controls</span><h2>Doubt Control Center</h2></div><span class="control-3d-icon">⚙</span></header>
+        <form method="post" action="{{ url_for('teacher.session_settings',session_id=class_session.id) }}">
+          <div class="control-block">
+            <div class="control-label"><label for="questionLimit">Student doubt limit</label><span>{{ class_session.question_limit }}</span></div>
+            <input id="questionLimit" class="input" type="number" name="question_limit" min="1" max="10000000" value="{{ class_session.question_limit }}">
+            <div class="limit-scale"><i>1</i><i>100</i><i>1 lakh</i><i>1 crore</i></div>
+          </div>
+          <label class="teacher-switch"><input type="checkbox" name="allow_student_attachment_download" {{ 'checked' if class_session.allow_student_attachment_download else '' }}><span></span><b>Allow student attachment download</b></label>
+          <button class="btn teacher-save-control" type="submit">Save Controls</button>
+        </form>
+        <div class="teacher-control-links">
+          <a href="{{ url_for('teacher.resources',session_id=class_session.id) }}"><span>📁</span><b>Upload Resources</b><small>PDF, images, documents, video links</small></a>
+          <a href="{{ url_for('teacher.attachment_zip',session_id=class_session.id) }}"><span>☁</span><b>Download ZIP</b><small>All student attachments</small></a>
+          <a href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id) }}"><span>⇩</span><b>Export Questions</b><small>Current session CSV</small></a>
+        </div>
+      </section>
+
+      <section class="teacher-qr-card">
+        <div class="qr-card-head"><div><span class="section-kicker">Student access</span><h2>Join with QR Code</h2></div><span class="qr-float-orb"></span></div>
+        <div class="teacher-qr-frame"><img id="teacherQrImage" src="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" alt="Student QR code"></div>
+        <input class="input" id="joinLink" readonly value="{{ join_url }}" aria-label="Student join link">
+        <div class="teacher-qr-actions">
+          <button class="btn" type="button" data-copy-target="#joinLink">Copy Link</button>
+          <a class="btn secondary" href="{{ url_for('teacher.download_qr',session_id=class_session.id) }}">Download QR</a>
+          <button class="btn secondary" type="button" data-share-qr data-qr-url="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" data-join-url="{{ join_url }}" data-file-name="{{ class_session.session_name|replace(' ', '_') }}_QR.png">Share QR</button>
+          <a class="btn secondary" href="{{ url_for('teacher.full_qr',session_id=class_session.id) }}">Full Screen</a>
+        </div>
+      </section>
+    </aside>
+  </section>
+</div>
+
+<script>
+(() => {
+  const sid = {{ class_session.id }};
+  let last = '';
+  let page = Number(localStorage.getItem(`ayd-teacher-live-page-${sid}`) || 1);
+  let perPage = Number(localStorage.getItem('ayd-teacher-live-size') || 100);
+  let knownIds = new Set();
+  const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+
+  function card(doubt, index, mode) {
+    const isNew = !knownIds.has(doubt.id);
+    const download = doubt.download_url ? `<a class="teacher-action download" href="${doubt.download_url}">⇩ Download</a>` : '';
+    const actions = mode === 'open'
+      ? `${download}<button class="teacher-action complete" data-id="${doubt.id}">✓ Mark Completed</button><button class="teacher-action skip" data-id="${doubt.id}">▶ Skip</button>`
+      : `${download}<button class="teacher-action reopen" data-id="${doubt.id}">↻ Reopen</button>`;
+    const voteClass = doubt.votes >= 100 ? 'vote-hot' : doubt.votes >= 25 ? 'vote-warm' : 'vote-cool';
+    return `<article class="teacher-doubt-card ${index === 0 && doubt.votes > 0 ? 'top-vote' : ''} ${isNew ? 'is-new' : ''}">
+      <div class="teacher-vote-stack ${voteClass}"><span>⌃</span><strong>${doubt.votes}</strong><small>same doubt${doubt.votes === 1 ? '' : 's'}</small></div>
+      <div class="teacher-doubt-copy"><div class="teacher-doubt-meta"><span>${doubt.status}</span>${index === 0 && doubt.votes > 0 ? '<b>Highest priority</b>' : ''}</div><div class="teacher-doubt-question">${esc(doubt.question)}</div></div>
+      <div class="teacher-doubt-actions">${actions}</div>
+    </article>`;
+  }
+
+  async function action(id, actionName, button) {
+    if (button) button.disabled = true;
+    try {
+      const response = await fetch(`/api/teacher/doubt/${id}/${actionName}`, { method: 'POST' });
+      if (!response.ok) throw new Error('Action failed');
+      last = '';
+      await load();
+    } catch (_) {
+      alert('Unable to update this doubt. Please try again.');
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function bind() {
+    document.querySelectorAll('.complete').forEach((button) => button.onclick = () => action(button.dataset.id, 'complete', button));
+    document.querySelectorAll('.skip').forEach((button) => button.onclick = () => action(button.dataset.id, 'skip', button));
+    document.querySelectorAll('.reopen').forEach((button) => button.onclick = () => action(button.dataset.id, 'reopen', button));
+  }
+
+  function renderPager(pager) {
+    page = pager.page;
+    localStorage.setItem(`ayd-teacher-live-page-${sid}`, String(page));
+    document.querySelector('#teacherPageInfo').textContent = `Page ${pager.page} / ${pager.pages} · ${pager.total} open`;
+    document.querySelector('#teacherPrevPage').disabled = !pager.has_prev;
+    document.querySelector('#teacherNextPage').disabled = !pager.has_next;
+    document.querySelector('#teacherPerPage').value = String(pager.per_page);
+  }
+
+  async function load() {
+    try {
+      const response = await fetch(`/api/teacher/session/${sid}?page=${page}&per_page=${perPage}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Live data unavailable');
+      const data = await response.json();
+      const key = JSON.stringify(data);
+      if (key === last) return;
+      last = key;
+      document.querySelector('#tTotal').textContent = data.stats.total;
+      document.querySelector('#tOpen').textContent = data.stats.open;
+      document.querySelector('#tCompleted').textContent = data.stats.completed;
+      document.querySelector('#tVotes').textContent = data.stats.votes;
+      document.querySelector('#teacherOpenDoubts').innerHTML = data.open.length ? data.open.map((item, index) => card(item, index, 'open')).join('') : '<div class="empty teacher-empty">No open doubts. The live queue is ready.</div>';
+      document.querySelector('#teacherCompletedDoubts').innerHTML = data.completed.length ? data.completed.map((item, index) => card(item, index, 'completed')).join('') : '<div class="empty">No completed doubts.</div>';
+      document.querySelector('#teacherSkippedDoubts').innerHTML = data.skipped.length ? data.skipped.map((item, index) => card(item, index, 'skipped')).join('') : '<div class="empty">No skipped doubts.</div>';
+      data.open.forEach((item) => knownIds.add(item.id));
+      renderPager(data.pagination);
+      bind();
+    } catch (error) { console.error(error); }
+  }
+
+  document.querySelector('#teacherPerPage').addEventListener('change', (event) => {
+    perPage = Number(event.target.value); page = 1; last = '';
+    localStorage.setItem('ayd-teacher-live-size', String(perPage)); load();
+  });
+  document.querySelector('#teacherPrevPage').addEventListener('click', () => { if (page > 1) { page -= 1; last=''; load(); } });
+  document.querySelector('#teacherNextPage').addEventListener('click', () => { page += 1; last=''; load(); });
+  load();
+  setInterval(load, 1000);
+})();
+</script>
+{% endblock %}

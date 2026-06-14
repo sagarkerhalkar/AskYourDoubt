@@ -1,0 +1,11 @@
+{% extends 'admin/base.html' %}
+{% block title %}Teacher Activity{% endblock %}
+{% block content %}
+<section class="page-head"><div><span class="eyebrow">Audit stream</span><h1>Teacher Activity</h1><p>Paginated teacher actions. The admin dashboard shows only the latest five.</p></div><a class="btn secondary" href="{{ url_for('admin.dashboard') }}">Back to Dashboard</a></section>
+<section class="panel">
+  <div class="table-wrap"><table><thead><tr><th>Teacher</th><th>Activity</th><th>Date & Time</th></tr></thead><tbody>
+  {% for a in activity %}<tr><td><b>{{ a.name or 'System' }}</b></td><td>{{ a.activity }}</td><td>{{ a.created_at }}</td></tr>{% else %}<tr><td colspan="3"><div class="empty">No activity found.</div></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% set endpoint='admin.activity_page' %}{% include 'partials/pagination.html' %}
+</section>
+{% endblock %}
