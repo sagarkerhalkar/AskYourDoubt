@@ -1,475 +1,488 @@
-from extensions import app
+from __future__ import annotations
+
+import io
+import os
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
 
 from flask import (
-    render_template,
-    request,
-    redirect,
-    session
+    Blueprint, current_app, flash, redirect, render_template, request,
+    send_file, session, url_for,
 )
+from werkzeug.security import generate_password_hash
 
-import sqlite3
-import qrcode
-import os
+from auth import teacher_required
+from db import get_db, transaction
+from utils import (create_qr, pagination_args, pagination_meta, rows_to_csv, save_upload, session_end_time, verify_and_upgrade_password)
 
-BASE_URL = app.config["BASE_URL"]
-
-
-# =====================================
-# CATEGORY DETECTION
-# =====================================
-
-def detect_category(question):
-
-    q = question.lower()
-
-    if any(word in q for word in [
-        "force",
-        "motion",
-        "newton",
-        "velocity",
-        "acceleration",
-        "physics"
-    ]):
-        return "Physics"
-
-    if any(word in q for word in [
-        "math",
-        "equation",
-        "quadratic",
-        "algebra",
-        "geometry",
-        "trigonometry"
-    ]):
-        return "Mathematics"
-
-    if any(word in q for word in [
-        "atom",
-        "molecule",
-        "chemistry",
-        "reaction"
-    ]):
-        return "Chemistry"
-
-    if any(word in q for word in [
-        "cell",
-        "biology",
-        "human body",
-        "uterus"
-    ]):
-        return "Biology"
-
-    return "General"
+bp = Blueprint('teacher', __name__)
 
 
-# =====================================
-# TEACHER LOGIN
-# =====================================
-
-@app.route("/teacher-login")
-def teacher_login():
-
-    return render_template(
-        "teacher/login.html"
-    )
-
-
-@app.route(
-    "/teacher-login",
-    methods=["POST"]
-)
-def teacher_login_post():
-
-    username = request.form["username"]
-    password = request.form["password"]
-
-    conn = sqlite3.connect("database.db")
-
-    row = conn.execute(
-        """
-        SELECT
-            id,
-            name
-        FROM teachers
-        WHERE username=?
-        AND password=?
-        """,
-        (
-            username,
-            password
-        )
+def _teacher_session(session_id: int):
+    return get_db().execute(
+        'SELECT * FROM sessions WHERE id=? AND teacher_id=?',
+        (session_id, session.get('teacher_id')),
     ).fetchone()
 
-    conn.close()
 
-    if not row:
-        return "Invalid Login"
-
-    session["teacher_id"] = row[0]
-    session["teacher_name"] = row[1]
-
-    return redirect("/teacher-dashboard")
-
-
-# =====================================
-# DASHBOARD
-# =====================================
-
-@app.route("/teacher-dashboard")
-def teacher_dashboard():
-
-    teacher_id = session.get("teacher_id")
-
-    if not teacher_id:
-        return redirect("/teacher-login")
-
-    conn = sqlite3.connect("database.db")
-
-    total_sessions = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM sessions
-        WHERE teacher_id=?
-        """,
-        (teacher_id,)
-    ).fetchone()[0]
-
-    total_questions = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM doubts
-        WHERE session_id IN (
-            SELECT id
-            FROM sessions
-            WHERE teacher_id=?
+def _log(activity: str) -> None:
+    with transaction() as db:
+        db.execute(
+            'INSERT INTO teacher_activity(teacher_id, activity) VALUES(?,?)',
+            (session.get('teacher_id'), activity),
         )
-        """,
-        (teacher_id,)
-    ).fetchone()[0]
-
-    conn.close()
-
-    return render_template(
-        "teacher/dashboard.html",
-        total_sessions=total_sessions,
-        total_questions=total_questions,
-        teacher_name=session["teacher_name"]
-    )
 
 
-# =====================================
-# CREATE SESSION
-# =====================================
-
-@app.route("/teacher-create-session")
-def teacher_create_session():
-
-    if "teacher_id" not in session:
-        return redirect("/teacher-login")
-
-    return render_template(
-        "teacher/create_session.html"
-    )
-
-
-@app.route(
-    "/teacher-create-session",
-    methods=["POST"]
-)
-def teacher_create_session_post():
-
-    teacher_id = session["teacher_id"]
-
-    session_name = request.form["session_name"]
-    duration = request.form["duration"]
-
-    conn = sqlite3.connect("database.db")
-
-    conn.execute(
-        """
-        INSERT INTO sessions(
-            teacher_id,
-            session_name,
-            duration
-        )
-        VALUES(?,?,?)
-        """,
-        (
-            teacher_id,
-            session_name,
-            duration
-        )
-    )
-
-    conn.commit()
-
-    session_id = conn.execute(
-        "SELECT last_insert_rowid()"
-    ).fetchone()[0]
-
-    conn.execute(
-        """
-        INSERT INTO teacher_activity(
-            teacher_id,
-            activity
-        )
-        VALUES(?,?)
-        """,
-        (
-            teacher_id,
-            f"Created Session {session_id}"
-        )
-    )
-
-    conn.commit()
-    conn.close()
-
-    os.makedirs(
-        "static/qr",
-        exist_ok=True
-    )
-
-    join_url = (
-        f"{BASE_URL}/join-session/{session_id}"
-    )
-
-    img = qrcode.make(join_url)
-
-    img.save(
-        f"static/qr/session_{session_id}.png"
-    )
-
-    return redirect(
-        f"/teacher-session/{session_id}"
-    )
+@bp.route('/teacher-login', methods=['GET', 'POST'])
+def login():
+    if session.get('teacher_id'):
+        return redirect(url_for('teacher.dashboard'))
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        db = get_db()
+        row = db.execute('SELECT * FROM teachers WHERE username=?', (username,)).fetchone()
+        if not row:
+            error = 'Invalid username or password.'
+        elif row['status'] != 'ACTIVE':
+            error = 'This teacher account is disabled. Contact the administrator.'
+        else:
+            valid, upgraded = verify_and_upgrade_password(row['password'], password)
+            if not valid:
+                error = 'Invalid username or password.'
+            else:
+                if upgraded:
+                    with transaction() as tx:
+                        tx.execute('UPDATE teachers SET password=? WHERE id=?', (upgraded, row['id']))
+                session.clear()
+                session.permanent = True
+                session['teacher_id'] = row['id']
+                session['teacher_name'] = row['name']
+                _log('Teacher logged in')
+                return redirect(url_for('teacher.dashboard'))
+    return render_template('teacher/login.html', error=error)
 
 
-# =====================================
-# SESSION VIEW
-# =====================================
-
-@app.route("/teacher-session/<session_id>")
-def teacher_session(session_id):
-
-    if "teacher_id" not in session:
-        return redirect("/teacher-login")
-
-    conn = sqlite3.connect("database.db")
-
-    doubts = conn.execute(
-        """
-        SELECT
-            id,
-            question,
-            category,
-            votes,
-            status
-        FROM doubts
-        WHERE session_id=?
-        ORDER BY votes DESC,id DESC
-        """,
-        (session_id,)
+@bp.route('/teacher-dashboard')
+@teacher_required
+def dashboard():
+    db = get_db()
+    page, per_page = pagination_args(default=10)
+    total_sessions = db.execute(
+        'SELECT COUNT(*) AS c FROM sessions WHERE teacher_id=?',
+        (session['teacher_id'],),
+    ).fetchone()['c']
+    pager = pagination_meta(total_sessions, page, per_page)
+    rows = db.execute(
+        '''
+        SELECT s.*,
+               (SELECT COUNT(*) FROM doubts d WHERE d.session_id=s.id) AS doubt_count,
+               (SELECT COUNT(*) FROM doubts d WHERE d.session_id=s.id AND d.status='OPEN') AS open_count
+        FROM sessions s
+        WHERE s.teacher_id=?
+        ORDER BY s.id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        (session['teacher_id'], per_page, (pager['page'] - 1) * per_page),
     ).fetchall()
-
-    total_students = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM session_students
-        WHERE session_id=?
-        """,
-        (session_id,)
-    ).fetchone()[0]
-
-    conn.close()
-
-    return render_template(
-        "teacher/session_questions.html",
-        session_id=session_id,
-        doubts=doubts,
-        total_students=total_students
-    )
+    totals = db.execute(
+        '''
+        SELECT COUNT(DISTINCT s.id) AS sessions,
+               COUNT(d.id) AS doubts,
+               SUM(CASE WHEN d.status='OPEN' THEN 1 ELSE 0 END) AS open_count,
+               SUM(CASE WHEN d.status='COMPLETED' THEN 1 ELSE 0 END) AS completed_count
+        FROM sessions s LEFT JOIN doubts d ON d.session_id=s.id
+        WHERE s.teacher_id=?
+        ''',
+        (session['teacher_id'],),
+    ).fetchone()
+    return render_template('teacher/dashboard.html', sessions=rows, totals=totals, pager=pager)
 
 
-# =====================================
-# COMPLETE DOUBT
-# =====================================
-
-@app.route(
-    "/complete-doubt/<doubt_id>"
-)
-def complete_doubt(doubt_id):
-
-    conn = sqlite3.connect("database.db")
-
-    conn.execute(
-        """
-        UPDATE doubts
-        SET status='COMPLETED'
-        WHERE id=?
-        """,
-        (doubt_id,)
-    )
-
-    conn.commit()
-
-    session_id = conn.execute(
-        """
-        SELECT session_id
-        FROM doubts
-        WHERE id=?
-        """,
-        (doubt_id,)
-    ).fetchone()[0]
-
-    conn.close()
-
-    return redirect(
-        f"/teacher-session/{session_id}"
-    )
-
-
-# =====================================
-# SKIP DOUBT
-# =====================================
-
-@app.route(
-    "/skip-doubt/<doubt_id>"
-)
-def skip_doubt(doubt_id):
-
-    conn = sqlite3.connect("database.db")
-
-    conn.execute(
-        """
-        UPDATE doubts
-        SET status='SKIPPED'
-        WHERE id=?
-        """,
-        (doubt_id,)
-    )
-
-    conn.commit()
-
-    session_id = conn.execute(
-        """
-        SELECT session_id
-        FROM doubts
-        WHERE id=?
-        """,
-        (doubt_id,)
-    ).fetchone()[0]
-
-    conn.close()
-
-    return redirect(
-        f"/teacher-session/{session_id}"
-    )
-
-
-# =====================================
-# KEYWORD ANALYSIS
-# =====================================
-
-@app.route(
-    "/teacher-keywords/<session_id>"
-)
-def teacher_keywords(session_id):
-
-    conn = sqlite3.connect("database.db")
-
-    rows = conn.execute(
-        """
-        SELECT question
-        FROM doubts
-        WHERE session_id=?
-        """,
-        (session_id,)
-    ).fetchall()
-
-    conn.close()
-
-    keywords = {}
-
-    for row in rows:
-
-        words = row[0].lower().split()
-
-        for word in words:
-
-            if len(word) < 4:
-                continue
-
-            keywords[word] = (
-                keywords.get(word, 0) + 1
+@bp.route('/teacher/create-session', methods=['GET', 'POST'])
+@teacher_required
+def create_session():
+    if request.method == 'POST':
+        name = request.form.get('session_name', '').strip()
+        try:
+            duration = int(request.form.get('duration', 90))
+            question_limit = int(request.form.get('question_limit', 100))
+        except ValueError:
+            duration, question_limit = 90, 100
+        duration = duration if duration in {90, 120, 180} else 90
+        question_limit = min(max(question_limit, 1), 10_000_000)
+        if not name:
+            flash('Session name is required.', 'error')
+            return render_template('teacher/create_session.html')
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec='seconds')
+        ends_at = session_end_time(duration)
+        with transaction() as db:
+            cur = db.execute(
+                '''
+                INSERT INTO sessions(
+                    teacher_id, session_name, duration, status, created_at,
+                    started_at, ends_at, question_limit
+                ) VALUES(?,?,?,'ACTIVE',?,?,?,?)
+                ''',
+                (
+                    session['teacher_id'], name, duration, now, now, ends_at,
+                    question_limit,
+                ),
             )
+            session_id = cur.lastrowid
+        create_qr(session_id)
+        _log(f"Created session '{name}'")
+        return redirect(url_for('teacher.live_session', session_id=session_id))
+    return render_template('teacher/create_session.html')
 
-    sorted_words = sorted(
-        keywords.items(),
-        key=lambda x: x[1],
-        reverse=True
-    )
 
-    html = """
-    <h1>Keyword Analysis</h1>
-    <hr>
-    """
+@bp.route('/teacher/session/<int:session_id>')
+@teacher_required
+def live_session(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return render_template('public/error.html', code=403, title='Access denied', message='This session does not belong to you.'), 403
+    join_url = f"{current_app.config['BASE_URL'].rstrip('/')}/join-session/{session_id}"
+    qr_path = Path(current_app.config['QR_FOLDER']) / f'session_{session_id}.png'
+    if not qr_path.exists():
+        create_qr(session_id)
+    return render_template('teacher/live_session.html', class_session=class_session, join_url=join_url)
 
-    for word, count in sorted_words[:50]:
 
-        html += (
-            f"<b>{word}</b> : {count}<br>"
+@bp.route('/teacher/session/<int:session_id>/qr')
+@teacher_required
+def full_qr(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return render_template('public/error.html', code=403, title='Access denied', message='This session does not belong to you.'), 403
+    join_url = f"{current_app.config['BASE_URL'].rstrip('/')}/join-session/{session_id}"
+    qr_path = Path(current_app.config['QR_FOLDER']) / f'session_{session_id}.png'
+    if not qr_path.exists():
+        create_qr(session_id)
+    return render_template('teacher/full_qr.html', class_session=class_session, join_url=join_url)
+
+
+@bp.route('/teacher/session/<int:session_id>/qr/download')
+@teacher_required
+def download_qr(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return render_template('public/error.html', code=403, title='Access denied', message='This session does not belong to you.'), 403
+    qr_path = Path(current_app.config['QR_FOLDER']) / f'session_{session_id}.png'
+    if not qr_path.exists():
+        create_qr(session_id)
+    safe_name = ''.join(ch if ch.isalnum() or ch in ('-', '_') else '_' for ch in class_session['session_name']).strip('_')
+    download_name = f"{safe_name or f'session_{session_id}'}_student_QR.png"
+    return send_file(qr_path, as_attachment=True, download_name=download_name, mimetype='image/png')
+
+
+@bp.route('/teacher/session/<int:session_id>/close', methods=['POST'])
+@teacher_required
+def close_session(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return ('Access denied', 403)
+    with transaction() as db:
+        db.execute("UPDATE sessions SET status='CLOSED', closed_at=CURRENT_TIMESTAMP WHERE id=?", (session_id,))
+    _log(f"Closed session '{class_session['session_name']}'")
+    return redirect(url_for('teacher.live_session', session_id=session_id))
+
+
+@bp.route('/teacher/session/<int:session_id>/reopen', methods=['POST'])
+@teacher_required
+def reopen_session(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return ('Access denied', 403)
+    ends_at = session_end_time(int(class_session['duration'] or 90))
+    with transaction() as db:
+        db.execute(
+            "UPDATE sessions SET status='ACTIVE', started_at=CURRENT_TIMESTAMP, ends_at=?, closed_at=NULL WHERE id=?",
+            (ends_at, session_id),
         )
+    create_qr(session_id)
+    _log(f"Reopened session '{class_session['session_name']}'")
+    return redirect(url_for('teacher.live_session', session_id=session_id))
 
-    return html
+
+@bp.route('/teacher/session/<int:session_id>/settings', methods=['POST'])
+@teacher_required
+def session_settings(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return ('Access denied', 403)
+    try:
+        limit = min(max(int(request.form.get('question_limit', 100)), 1), 10_000_000)
+    except ValueError:
+        limit = 100
+    allow = 1 if request.form.get('allow_student_attachment_download') == 'on' else 0
+    with transaction() as db:
+        db.execute(
+            'UPDATE sessions SET question_limit=?, allow_student_attachment_download=? WHERE id=?',
+            (limit, allow, session_id),
+        )
+    flash('Doubt control settings updated.', 'success')
+    return redirect(url_for('teacher.live_session', session_id=session_id))
 
 
-# =====================================
-# CATEGORY ANALYSIS
-# =====================================
-
-@app.route(
-    "/teacher-categories/<session_id>"
-)
-def teacher_categories(session_id):
-
-    conn = sqlite3.connect("database.db")
-
-    rows = conn.execute(
-        """
-        SELECT
-            category,
-            COUNT(*)
-        FROM doubts
-        WHERE session_id=?
-        GROUP BY category
-        """,
-        (session_id,)
+@bp.route('/teacher/session/<int:session_id>/resources', methods=['GET', 'POST'])
+@teacher_required
+def resources(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return render_template('public/error.html', code=403, title='Access denied', message='This session does not belong to you.'), 403
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        resource_type = request.form.get('resource_type', '').upper()
+        notes = request.form.get('notes', '').strip()
+        video_url = request.form.get('video_url', '').strip()
+        file_path = ''
+        uploaded = request.files.get('file')
+        if uploaded and uploaded.filename:
+            try:
+                file_path, _, file_type = save_upload(uploaded, current_app.config['UPLOAD_RESOURCES'], resource=True)
+                resource_type = file_type
+            except ValueError as exc:
+                flash(str(exc), 'error')
+                return redirect(url_for('teacher.resources', session_id=session_id))
+        if not title:
+            flash('Resource title is required.', 'error')
+        elif not any([file_path, video_url, notes]):
+            flash('Add a file, video link, or note.', 'error')
+        else:
+            if video_url:
+                resource_type = 'VIDEO'
+            elif notes and not file_path:
+                resource_type = 'NOTE'
+            with transaction() as db:
+                db.execute(
+                    '''INSERT INTO resources(session_id,title,resource_type,file_path,video_url,notes)
+                       VALUES(?,?,?,?,?,?)''',
+                    (session_id, title, resource_type, file_path, video_url, notes),
+                )
+            flash('Resource shared with students.', 'success')
+            _log(f"Shared a resource in '{class_session['session_name']}'")
+        return redirect(url_for('teacher.resources', session_id=session_id))
+    page, per_page = pagination_args(default=10)
+    db = get_db()
+    total = db.execute('SELECT COUNT(*) AS c FROM resources WHERE session_id=?', (session_id,)).fetchone()['c']
+    pager = pagination_meta(total, page, per_page)
+    rows = db.execute(
+        'SELECT * FROM resources WHERE session_id=? ORDER BY id DESC LIMIT ? OFFSET ?',
+        (session_id, per_page, (pager['page'] - 1) * per_page),
     ).fetchall()
-
-    conn.close()
-
-    html = """
-    <h1>Category Analysis</h1>
-    <hr>
-    """
-
-    for row in rows:
-
-        html += (
-            f"{row[0]} : {row[1]}<br>"
-        )
-
-    return html
+    return render_template('teacher/resources.html', class_session=class_session, resources=rows, pager=pager)
 
 
-# =====================================
-# LOGOUT
-# =====================================
+@bp.route('/teacher/resource/<int:resource_id>/open')
+@teacher_required
+def open_resource(resource_id: int):
+    row = get_db().execute(
+        '''SELECT r.*, s.teacher_id FROM resources r JOIN sessions s ON s.id=r.session_id WHERE r.id=?''',
+        (resource_id,),
+    ).fetchone()
+    if not row or row['teacher_id'] != session['teacher_id']:
+        return ('Access denied', 403)
+    if row['video_url']:
+        return redirect(row['video_url'])
+    if row['file_path'] and Path(row['file_path']).exists():
+        return send_file(row['file_path'], as_attachment=False)
+    return render_template('public/error.html', code=404, title='Resource missing', message='The resource is not available.'), 404
 
-@app.route("/teacher-logout")
-def teacher_logout():
 
-    session.clear()
-
-    return redirect(
-        "/teacher-login"
+@bp.route('/teacher/questions.csv')
+@teacher_required
+def all_questions_csv():
+    rows = get_db().execute(
+        '''SELECT s.session_name, d.question, d.category, d.keyword, d.votes, d.status, d.created_at
+           FROM doubts d JOIN sessions s ON s.id=d.session_id
+           WHERE s.teacher_id=? ORDER BY s.id DESC, d.votes DESC, d.id DESC''',
+        (session['teacher_id'],),
+    ).fetchall()
+    csv_file = rows_to_csv(
+        ['Session','Question','Category','Keyword','Votes','Status','Created At'],
+        ([r['session_name'],r['question'],r['category'],r['keyword'],r['votes'],r['status'],r['created_at']] for r in rows),
     )
+    return send_file(csv_file, as_attachment=True, download_name='teacher_all_session_questions.csv', mimetype='text/csv')
+
+
+@bp.route('/teacher/resource/<int:resource_id>/delete', methods=['POST'])
+@teacher_required
+def delete_resource(resource_id: int):
+    db = get_db()
+    row = db.execute(
+        '''SELECT r.*, s.teacher_id FROM resources r JOIN sessions s ON s.id=r.session_id WHERE r.id=?''',
+        (resource_id,),
+    ).fetchone()
+    if not row or row['teacher_id'] != session['teacher_id']:
+        return ('Access denied', 403)
+    if row['file_path']:
+        try:
+            Path(row['file_path']).unlink(missing_ok=True)
+        except OSError:
+            pass
+    with transaction() as tx:
+        tx.execute('DELETE FROM resources WHERE id=?', (resource_id,))
+    return redirect(url_for('teacher.resources', session_id=row['session_id']))
+
+
+@bp.route('/teacher/doubt/<int:doubt_id>/attachment')
+@teacher_required
+def doubt_attachment(doubt_id: int):
+    row = get_db().execute(
+        '''
+        SELECT d.attachment_path, d.attachment_name, s.teacher_id
+        FROM doubts d JOIN sessions s ON s.id=d.session_id WHERE d.id=?
+        ''',
+        (doubt_id,),
+    ).fetchone()
+    if not row or row['teacher_id'] != session['teacher_id']:
+        return ('Access denied', 403)
+    if row['attachment_path'] and Path(row['attachment_path']).exists():
+        return send_file(row['attachment_path'], as_attachment=True, download_name=row['attachment_name'])
+    return render_template('public/error.html', code=404, title='Attachment missing', message='The attachment is not available.'), 404
+
+
+@bp.route('/teacher/session/<int:session_id>/attachments.zip')
+@teacher_required
+def attachment_zip(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return ('Access denied', 403)
+    rows = get_db().execute(
+        "SELECT id, attachment_path, attachment_name FROM doubts WHERE session_id=? AND attachment_path!=''",
+        (session_id,),
+    ).fetchall()
+    memory = io.BytesIO()
+    added = 0
+    with zipfile.ZipFile(memory, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for row in rows:
+            if row['attachment_path'] and Path(row['attachment_path']).exists():
+                archive.write(row['attachment_path'], arcname=f"doubt_{row['id']}_{row['attachment_name']}")
+                added += 1
+    if not added:
+        flash('No student attachments are available.', 'error')
+        return redirect(url_for('teacher.live_session', session_id=session_id))
+    memory.seek(0)
+    return send_file(memory, as_attachment=True, download_name=f"session_{session_id}_attachments.zip", mimetype='application/zip')
+
+
+@bp.route('/teacher/session/<int:session_id>/questions.csv')
+@teacher_required
+def session_questions_csv(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return ('Access denied', 403)
+    rows = get_db().execute(
+        '''SELECT question, category, keyword, votes, status, created_at FROM doubts
+           WHERE session_id=? ORDER BY votes DESC, id DESC''',
+        (session_id,),
+    ).fetchall()
+    csv_file = rows_to_csv(
+        ['Question', 'Category', 'Keyword', 'Votes', 'Status', 'Created At'],
+        ([r['question'], r['category'], r['keyword'], r['votes'], r['status'], r['created_at']] for r in rows),
+    )
+    return send_file(csv_file, as_attachment=True, download_name=f"session_{session_id}_questions.csv", mimetype='text/csv')
+
+
+@bp.route('/teacher/question-bank')
+@teacher_required
+def question_bank():
+    db = get_db()
+    status = request.args.get('status', 'ALL')
+    page, per_page = pagination_args(default=10)
+    params = [session['teacher_id']]
+    where_sql = ' WHERE teacher_id=?'
+    if status in {'OPEN', 'COMPLETED'}:
+        where_sql += ' AND status=?'
+        params.append(status)
+    total = db.execute('SELECT COUNT(*) AS c FROM repository' + where_sql, params).fetchone()['c']
+    pager = pagination_meta(total, page, per_page)
+    rows = db.execute(
+        'SELECT * FROM repository' + where_sql + ' ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?',
+        [*params, per_page, (pager['page'] - 1) * per_page],
+    ).fetchall()
+    sessions = db.execute(
+        'SELECT id, session_name, created_at FROM sessions WHERE teacher_id=? ORDER BY id DESC',
+        (session['teacher_id'],),
+    ).fetchall()
+    return render_template(
+        'teacher/question_bank.html', questions=rows, sessions=sessions,
+        selected_status=status, pager=pager,
+    )
+
+
+@bp.route('/teacher/question-bank.csv')
+@teacher_required
+def question_bank_csv():
+    session_id = request.args.get('session_id', '').strip()
+    db = get_db()
+    params = [session['teacher_id']]
+    sql = 'SELECT question, category, keyword, total_votes, status, session_name, session_date FROM repository WHERE teacher_id=?'
+    if session_id.isdigit():
+        sql += ' AND session_id=?'
+        params.append(int(session_id))
+    sql += ' ORDER BY id DESC'
+    rows = db.execute(sql, params).fetchall()
+    csv_file = rows_to_csv(
+        ['Question', 'Category', 'Keyword', 'Votes', 'Status', 'Session', 'Session Date'],
+        ([r['question'], r['category'], r['keyword'], r['total_votes'], r['status'], r['session_name'], r['session_date']] for r in rows),
+    )
+    return send_file(csv_file, as_attachment=True, download_name='teacher_question_bank.csv', mimetype='text/csv')
+
+
+@bp.route('/teacher/analytics')
+@teacher_required
+def analytics():
+    db = get_db()
+    categories = db.execute(
+        '''SELECT d.category AS label, COUNT(*) AS value FROM doubts d
+           JOIN sessions s ON s.id=d.session_id WHERE s.teacher_id=?
+           GROUP BY d.category ORDER BY value DESC LIMIT 12''',
+        (session['teacher_id'],),
+    ).fetchall()
+    keywords = db.execute(
+        '''SELECT d.keyword AS label, COUNT(*) AS value FROM doubts d
+           JOIN sessions s ON s.id=d.session_id WHERE s.teacher_id=?
+           GROUP BY d.keyword ORDER BY value DESC LIMIT 12''',
+        (session['teacher_id'],),
+    ).fetchall()
+    session_rows = db.execute(
+        '''SELECT s.session_name AS label, COUNT(d.id) AS value FROM sessions s
+           LEFT JOIN doubts d ON d.session_id=s.id WHERE s.teacher_id=?
+           GROUP BY s.id ORDER BY s.id DESC LIMIT 12''',
+        (session['teacher_id'],),
+    ).fetchall()
+    return render_template('teacher/analytics.html', categories=categories, keywords=keywords, session_rows=session_rows)
+
+
+@bp.route('/teacher/change-password', methods=['GET', 'POST'])
+@teacher_required
+def change_password():
+    error = None
+    if request.method == 'POST':
+        current = request.form.get('current_password', '')
+        new = request.form.get('new_password', '')
+        confirm = request.form.get('confirm_password', '')
+        row = get_db().execute('SELECT password FROM teachers WHERE id=?', (session['teacher_id'],)).fetchone()
+        valid, _ = verify_and_upgrade_password(row['password'], current)
+        if not valid:
+            error = 'Current password is incorrect.'
+        elif len(new) < 8:
+            error = 'New password must contain at least 8 characters.'
+        elif new != confirm:
+            error = 'New passwords do not match.'
+        else:
+            with transaction() as db:
+                db.execute('UPDATE teachers SET password=? WHERE id=?', (generate_password_hash(new), session['teacher_id']))
+            flash('Password changed successfully.', 'success')
+            return redirect(url_for('teacher.dashboard'))
+    return render_template('teacher/change_password.html', error=error)
+
+
+@bp.route('/teacher-logout')
+def logout():
+    session.clear()
+    return redirect(url_for('teacher.login'))

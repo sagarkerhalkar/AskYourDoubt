@@ -1,0 +1,18 @@
+{% if pager %}
+<nav class="pagination-shell" aria-label="Pagination">
+  <div class="pagination-summary">
+    Showing <strong>{{ pager.start }}</strong>–<strong>{{ pager.end }}</strong> of <strong>{{ pager.total }}</strong>
+  </div>
+  <div class="pagination-controls">
+    <div class="page-size-switcher" aria-label="Rows per page">
+      <span>Show</span>
+      {% for size in pager.allowed_sizes %}
+        <a class="page-size {{ 'active' if pager.per_page==size }}" href="{{ pager.size_urls[size] }}">{{ size }}</a>
+      {% endfor %}
+    </div>
+    <a class="page-nav {{ 'disabled' if not pager.has_prev }}" href="{{ pager.prev_url if pager.has_prev else '#' }}" aria-disabled="{{ 'true' if not pager.has_prev else 'false' }}">← Previous</a>
+    <span class="page-indicator">Page {{ pager.page }} / {{ pager.pages }}</span>
+    <a class="page-nav {{ 'disabled' if not pager.has_next }}" href="{{ pager.next_url if pager.has_next else '#' }}" aria-disabled="{{ 'true' if not pager.has_next else 'false' }}">Next →</a>
+  </div>
+</nav>
+{% endif %}

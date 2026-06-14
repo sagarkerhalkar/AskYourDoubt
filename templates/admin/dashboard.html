@@ -1,91 +1,73 @@
-<!DOCTYPE html>
-<html>
+{% extends 'admin/base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<section class="admin-v13-head">
+  <div>
+    <span class="eyebrow">Platform intelligence</span>
+    <h1>Welcome back, {{ session.admin_name }} <span aria-hidden="true">👋</span></h1>
+    <p>Monitor sessions, teachers, students, and doubt activity without an endless page.</p>
+  </div>
+  <div class="admin-head-actions">
+    <a class="btn secondary" href="{{ url_for('admin.analytics') }}">View Analytics</a>
+    <a class="btn" href="{{ url_for('admin.teachers') }}">Create Teacher</a>
+  </div>
+  <div class="admin-3d-cap" aria-hidden="true"><span>◆</span><i></i><b></b></div>
+</section>
 
-<head>
-    <title>Admin Dashboard</title>
-</head>
+<section class="admin-v13-stats">
+  {% set stat_items = [
+    ('Teachers',totals.teachers,'👩‍🏫','blue'),
+    ('Sessions',totals.sessions,'▣','violet'),
+    ('Students',totals.students,'🎓','cyan'),
+    ('Total Doubts',totals.doubts,'?','indigo'),
+    ('Open',totals.open_count,'◉','amber'),
+    ('Completed',totals.completed_count,'✓','green'),
+    ('Skipped',totals.skipped_count,'×','rose')
+  ] %}
+  {% for label,value,icon,tone in stat_items %}
+  <article class="admin-v13-stat {{ tone }}"><span class="admin-stat-icon">{{ icon }}</span><div><small>{{ label }}</small><strong>{{ value or 0 }}</strong><em>Platform total</em></div></article>
+  {% endfor %}
+</section>
 
-<body>
+<section class="admin-v13-grid">
+  <article class="admin-v13-card admin-sessions-card">
+    <header><div><span class="section-kicker">Overview</span><h2>Live & Recent Sessions</h2><p>Only the five most recent sessions are shown here.</p></div><a class="btn small secondary" href="{{ url_for('admin.sessions_page') }}">View All</a></header>
+    <div class="table-wrap admin-compact-table">
+      <table><thead><tr><th>Teacher</th><th>Session</th><th>Status</th><th>Doubts</th><th>Created</th></tr></thead><tbody>
+      {% for s in live_sessions %}<tr><td>{{ s.teacher_name }}</td><td>#{{ s.id }} · {{ s.session_name }}</td><td><span class="pill status-{{ s.status|lower }}">{{ s.status }}</span></td><td>{{ s.doubts }}</td><td>{{ s.created_at }}</td></tr>{% else %}<tr><td colspan="5"><div class="empty">No sessions yet.</div></td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+  </article>
 
-<h1>
-Admin Dashboard
-</h1>
+  <article class="admin-v13-card admin-activity-card">
+    <header><div><span class="section-kicker">Latest five</span><h2>Teacher Activity</h2><p>Recent platform actions only.</p></div><a class="btn small secondary" href="{{ url_for('admin.activity_page') }}">View All</a></header>
+    <div class="admin-activity-list">
+      {% for a in activity %}
+      <div class="admin-activity-item"><span class="activity-avatar">{{ (a.name or 'S')[:1]|upper }}</span><div><b>{{ a.name or 'System' }}</b><p>{{ a.activity }}</p><small>{{ a.created_at }}</small></div><i></i></div>
+      {% else %}<div class="empty">No activity yet.</div>{% endfor %}
+    </div>
+  </article>
 
-<hr>
+  <article class="admin-v13-card admin-summary-card">
+    <header><div><span class="section-kicker">Question intelligence</span><h2>Doubts by Category</h2></div><a href="{{ url_for('admin.analytics') }}">Details →</a></header>
+    <div class="admin-bars">{% set maxv=((categories|map(attribute='value')|max) or 1) if categories else 1 %}{% for r in categories[:6] %}<div><span>{{ r.label or 'General' }}</span><b><i style="width:{{ (r.value/maxv*100)|round }}%"></i></b><strong>{{ r.value }}</strong></div>{% else %}<div class="empty">No category data.</div>{% endfor %}</div>
+  </article>
 
-Teachers :
-{{ total_teachers }}
+  <article class="admin-v13-card admin-keyword-card">
+    <header><div><span class="section-kicker">Learning signals</span><h2>Top Keywords</h2></div><a href="{{ url_for('admin.analytics') }}">Details →</a></header>
+    <div class="admin-keyword-cloud">{% for r in keywords[:10] %}<span style="--weight:{{ r.value or 1 }}">{{ r.label or 'general' }}</span>{% else %}<div class="empty">No keyword data.</div>{% endfor %}</div>
+  </article>
 
-<br><br>
-
-Sessions :
-{{ total_sessions }}
-
-<br><br>
-
-Students :
-{{ total_students }}
-
-<br><br>
-
-Doubts :
-{{ total_doubts }}
-
-<br><br>
-
-<hr>
-
-<a href="/admin-create-teacher">
-Create Teacher
-</a>
-
-<br><br>
-
-<a href="/admin-teachers">
-Teachers
-</a>
-
-<br><br>
-
-<a href="/admin-sessions">
-Sessions
-</a>
-
-<br><br>
-
-<a href="/admin-students">
-Students
-</a>
-
-<br><br>
-
-<a href="/admin-doubts">
-Doubts
-</a>
-
-<br><br>
-
-<a href="/admin-teacher-activity">
-Teacher Activity
-</a>
-
-<br><br>
-
-<a href="/admin-category-analytics">
-Category Analytics
-</a>
-
-<br><br>
-
-<a href="/admin-keyword-analytics">
-Keyword Analytics
-</a>
-
-<br><br>
-
-<a href="/admin-logout">
-Logout
-</a>
-
-</body>
-</html>
+  <article class="admin-v13-card admin-quick-card">
+    <header><div><span class="section-kicker">Shortcuts</span><h2>Quick Actions</h2></div></header>
+    <div class="admin-quick-grid">
+      <a href="{{ url_for('admin.teachers') }}"><span>＋</span>Create Teacher</a>
+      <a href="{{ url_for('admin.admins') }}"><span>🛡</span>Create Admin</a>
+      <a href="{{ url_for('admin.questions') }}"><span>?</span>All Questions</a>
+      <a href="{{ url_for('admin.question_bank') }}"><span>▤</span>Question Bank</a>
+      <a href="{{ url_for('admin.analytics') }}"><span>↗</span>Analytics</a>
+      <a href="{{ url_for('admin.brand_settings') }}"><span>✦</span>Brand Settings</a>
+    </div>
+  </article>
+</section>
+{% endblock %}

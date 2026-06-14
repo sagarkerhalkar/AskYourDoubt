@@ -1,0 +1,63 @@
+name: askyourdoubt-production
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: 1.3-light-3d
+    image: askyourdoubt:1.3-light-3d
+    container_name: askyourdoubt-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      AYD_SECRET_KEY: ${AYD_SECRET_KEY}
+      AYD_DATABASE: /app/data/database.db
+      AYD_BASE_URL: ${AYD_BASE_URL}
+    expose:
+      - "9000"
+    volumes:
+      - ayd_database:/app/data
+      - ayd_uploads:/app/static/uploads
+      - ayd_qr:/app/static/qr
+      - ayd_exports:/app/exports
+      - ayd_brand:/app/static/brand
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/healthz', timeout=4).read()"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: askyourdoubt-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      AYD_DOMAIN: ${AYD_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  ayd_database:
+  ayd_uploads:
+  ayd_qr:
+  ayd_exports:
+  ayd_brand:
+  caddy_data:
+  caddy_config:

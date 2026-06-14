@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-label="Ask Your Doubt">
+  <defs>
+    <linearGradient id="mark" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#2f7df4"/>
+      <stop offset=".52" stop-color="#5b5cf0"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="tag" x1="0" x2="1">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#f9d078"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="160" rx="32" fill="#0b1631"/>
+  <g transform="translate(30 25)">
+    <path d="M15 40 70 8l55 32-55 32z" fill="url(#mark)"/>
+    <path d="M32 56v30c0 16 22 28 38 28s38-12 38-28V56L70 78z" fill="#2f7df4" opacity=".86"/>
+    <path d="M125 40v42" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="125" cy="88" r="9" fill="#f59e0b"/>
+  </g>
+  <text x="175" y="72" font-family="Inter,Arial,Helvetica,sans-serif" font-size="45" font-weight="800" fill="#fff">Ask Your Doubt</text>
+  <text x="177" y="112" font-family="Inter,Arial,Helvetica,sans-serif" font-size="23" font-weight="650" fill="url(#tag)">Every student heard</text>
+</svg>
