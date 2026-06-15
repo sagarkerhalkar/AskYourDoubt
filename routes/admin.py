@@ -6,7 +6,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
-from auth import admin_required
+from auth import admin_required, clear_role_session
 from db import get_db, transaction
 from utils import pagination_args, pagination_meta, rows_to_csv, verify_and_upgrade_password, validate_mobile
 
@@ -33,7 +33,7 @@ def login():
                 if upgraded:
                     with transaction() as tx:
                         tx.execute('UPDATE admins SET password=? WHERE id=?', (upgraded, row['id']))
-                session.clear()
+                clear_role_session('admin')
                 session.permanent = True
                 session['admin_id'] = row['id']
                 session['admin_name'] = row['display_name'] or row['username']
@@ -361,7 +361,7 @@ def brand_settings():
 
 @bp.route('/admin-logout')
 def logout():
-    session.clear()
+    clear_role_session('admin')
     return redirect(url_for('admin.login'))
 
 @bp.route('/admin/teacher/<int:teacher_id>/edit', methods=['GET', 'POST'])

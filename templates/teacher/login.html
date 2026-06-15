@@ -1,1 +1,37 @@
-{% extends 'public/base.html' %}{% block title %}Teacher Login — Ask Your Doubt{% endblock %}{% block body %}<main class="auth-page"><section class="auth-visual"><div class="eyebrow"><span class="pulse-dot"></span> Teacher Command Centre</div><h1 class="gradient-text">Lead the room.<br>Hear every student.</h1><p>Create live doubt sessions, share QR codes, prioritise the highest-voted questions, share resources, and understand learning gaps.</p></section><section class="auth-panel"><div class="auth-card"><a class="brand" href="/"><img src="{{ brand_logo }}" alt="Ask Your Doubt"></a><h2 style="margin-top:28px">Teacher login</h2><p class="muted">Secure access to your sessions and analytics.</p>{% if error %}<div class="error">{{ error }}</div>{% endif %}<form method="post"><div class="form-group"><label>Username</label><input class="input" name="username" autocomplete="username" required></div><div class="form-group"><label>Password</label><input class="input" type="password" name="password" autocomplete="current-password" required></div><button class="btn" type="submit">Open Teacher Portal</button></form></div></section></main>{% endblock %}
+{% extends 'public/base.html' %}
+{% block title %}Teacher Login — Ask Your Doubt{% endblock %}
+{% block body_class %}auth-v141-body{% endblock %}
+{% block body %}
+<main class="auth-v141 teacher-auth-v141">
+  <section class="auth-v141-showcase" aria-label="Teacher classroom experience">
+    <div class="auth-v141-glow glow-one"></div><div class="auth-v141-glow glow-two"></div>
+    <div class="auth-v141-copy">
+      <span class="auth-v141-badge"><span class="pulse-dot"></span> Teacher Workspace</span>
+      <h1>Turn every classroom question into clear learning.</h1>
+      <p>Launch live doubt sessions, share one QR, prioritise the most-voted questions, and guide the class without exposing student identity.</p>
+      <div class="auth-v141-points">
+        <span>⚡ Silent realtime updates</span><span>🎯 Highest priority first</span><span>🔒 Anonymous teacher view</span>
+      </div>
+    </div>
+    <figure class="auth-classroom-photo" aria-label="Indian teacher discussing a question with a student">
+      <img src="{{ url_for('static',filename='img/teacher-login-classroom.jpg') }}" alt="Indian teacher discussing a classroom question with a student" loading="eager">
+      <figcaption><b>Real classroom engagement</b><span>Listen, prioritise, answer, and measure learning in real time.</span></figcaption>
+    </figure>
+  </section>
+  <section class="auth-v141-panel">
+    <div class="auth-v141-card">
+      <a class="brand auth-v141-brand" href="/"><img src="{{ brand_logo }}" alt="Ask Your Doubt"></a>
+      <span class="auth-v141-kicker">Secure teacher access</span>
+      <h2>Welcome back</h2>
+      <p class="muted">Sign in to manage live sessions, questions, resources, and analytics.</p>
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <form method="post" novalidate>
+        <div class="form-group"><label for="teacherUsername">Username</label><input class="input" id="teacherUsername" name="username" autocomplete="username" required></div>
+        <div class="form-group"><label for="teacherPassword">Password</label><input class="input" id="teacherPassword" type="password" name="password" autocomplete="current-password" required></div>
+        <button class="btn auth-v141-submit" type="submit">Open Teacher Portal <span>→</span></button>
+      </form>
+      <a class="auth-v141-back" href="/">← Back to portal selection</a>
+    </div>
+  </section>
+</main>
+{% endblock %}

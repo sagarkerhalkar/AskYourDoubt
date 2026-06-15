@@ -1,1 +1,89 @@
-{% extends 'teacher/base.html' %}{% block title %}Teacher Dashboard{% endblock %}{% block content %}<section class="page-head"><div><span class="eyebrow">Teacher workspace</span><h1>Welcome, {{ session.teacher_name }}</h1><p>Create, reopen, and manage your live classroom doubt sessions.</p></div><a class="btn" href="{{ url_for('teacher.create_session') }}">Create New Session</a></section><section class="stats"><div class="stat"><span>Total Sessions</span><strong>{{ totals.sessions or 0 }}</strong><small class="muted">All time</small></div><div class="stat"><span>Total Questions</span><strong>{{ totals.doubts or 0 }}</strong><small class="muted">Across sessions</small></div><div class="stat"><span>Open Questions</span><strong>{{ totals.open_count or 0 }}</strong><small class="muted">Need attention</small></div><div class="stat"><span>Completed</span><strong>{{ totals.completed_count or 0 }}</strong><small class="muted">Answered in class</small></div></section><section class="panel" style="margin-top:20px"><div class="doubt-row"><div><h2>My Sessions</h2><p class="muted">Open active sessions or reopen a closed session at any time.</p></div><a class="btn secondary small" href="{{ url_for('teacher.question_bank') }}">Question Bank</a></div><div class="table-wrap" style="margin-top:18px"><table><thead><tr><th>Session</th><th>Created</th><th>Status</th><th>Questions</th><th>Open</th><th>Actions</th></tr></thead><tbody>{% for s in sessions %}<tr><td><b>{{ s.session_name }}</b><div class="muted">#{{ s.id }} · {{ s.duration }} min</div></td><td>{{ s.created_at }}</td><td><span class="pill {{ 'badge-open' if s.status=='ACTIVE' else 'badge-completed' }}">{{ s.status }}</span></td><td>{{ s.doubt_count }}</td><td>{{ s.open_count }}</td><td><div class="doubt-actions"><a class="btn small" href="{{ url_for('teacher.live_session',session_id=s.id) }}">Open</a><a class="btn small secondary" href="{{ url_for('teacher.resources',session_id=s.id) }}">Resources</a>{% if s.status!='ACTIVE' %}<form method="post" action="{{ url_for('teacher.reopen_session',session_id=s.id) }}"><button class="btn small orange">Reopen</button></form>{% endif %}</div></td></tr>{% else %}<tr><td colspan="6"><div class="empty">No sessions created yet.</div></td></tr>{% endfor %}</tbody></table></div>{% include 'partials/pagination.html' %}</section>{% endblock %}
+{% extends 'teacher/base.html' %}
+{% block title %}Teacher Dashboard{% endblock %}
+{% block content %}
+<div class="teacher-dashboard-v14">
+  <section class="teacher-dashboard-hero">
+    <div class="teacher-dashboard-copy">
+      <span class="teacher-dashboard-kicker"><span class="pulse-dot"></span> Teaching command centre</span>
+      <h1>Welcome back, {{ session.teacher_name }}</h1>
+      <p>Create a new doubt session, reopen an earlier class, share learning resources, and move directly into a focused live view.</p>
+      <div class="teacher-dashboard-actions">
+        <a class="btn" href="{{ url_for('teacher.create_session') }}">Create New Session</a>
+        <a class="btn secondary" href="{{ url_for('teacher.question_bank') }}">Open Question Bank</a>
+        <a class="btn secondary" href="{{ url_for('teacher.analytics') }}">View Analytics</a>
+      </div>
+    </div>
+    <div class="teacher-dashboard-visual" aria-hidden="true">
+      <div class="td-orbit td-orbit-one"></div>
+      <div class="td-orbit td-orbit-two"></div>
+      <div class="td-stage-card td-card-main"><span>LIVE</span><strong>{{ totals.active_sessions or 0 }}</strong><small>active sessions</small></div>
+      <div class="td-stage-card td-card-vote"><span>★</span><strong>{{ totals.total_votes or 0 }}</strong><small>same-doubt votes</small></div>
+      <div class="td-stage-card td-card-focus"><span>?</span><strong>{{ totals.open_count or 0 }}</strong><small>open focus</small></div>
+      <div class="td-glow"></div>
+    </div>
+  </section>
+
+  <section class="teacher-dashboard-metrics" aria-label="Teaching summary">
+    <article class="td-metric td-blue"><span class="td-metric-icon">◫</span><div><small>Total sessions</small><strong>{{ totals.sessions or 0 }}</strong><em>All classes</em></div></article>
+    <article class="td-metric td-violet"><span class="td-metric-icon">?</span><div><small>Total questions</small><strong>{{ totals.doubts or 0 }}</strong><em>Across sessions</em></div></article>
+    <article class="td-metric td-cyan"><span class="td-metric-icon">◎</span><div><small>Open focus</small><strong>{{ totals.open_count or 0 }}</strong><em>Need attention</em></div></article>
+    <article class="td-metric td-green"><span class="td-metric-icon">✓</span><div><small>Completed</small><strong>{{ totals.completed_count or 0 }}</strong><em>Answered in class</em></div></article>
+  </section>
+
+  <section class="teacher-dashboard-workspace">
+    <div class="teacher-session-panel">
+      <header class="teacher-session-panel-head">
+        <div><span class="section-kicker">Session control</span><h2>My classroom sessions</h2><p>Open the live room, launch the distraction-free doubt view, manage resources, or reopen a previous class.</p></div>
+        <a class="btn small" href="{{ url_for('teacher.create_session') }}">+ New Session</a>
+      </header>
+
+      <div class="teacher-session-cards">
+        {% for s in sessions %}
+        <article class="teacher-session-card {{ 'is-active' if s.status=='ACTIVE' else 'is-closed' }}">
+          <div class="teacher-session-card-top">
+            <span class="teacher-session-state"><i></i>{{ s.status }}</span>
+            <span class="teacher-session-id">#{{ s.id }}</span>
+          </div>
+          <h3>{{ s.session_name }}</h3>
+          <p>{{ s.created_at }} · {{ s.duration }} minutes</p>
+          <div class="teacher-session-mini-stats">
+            <span><b>{{ s.doubt_count }}</b><small>Questions</small></span>
+            <span><b>{{ s.open_count }}</b><small>Open</small></span>
+          </div>
+          <div class="teacher-session-card-actions">
+            <a class="btn small" href="{{ url_for('teacher.live_session',session_id=s.id) }}">Open Session</a>
+            <a class="btn small secondary" href="{{ url_for('teacher.live_focus',session_id=s.id) }}" target="_blank" rel="noopener">Live Focus ↗</a>
+            <a class="btn small secondary" href="{{ url_for('teacher.resources',session_id=s.id) }}">Resources</a>
+            {% if s.status!='ACTIVE' %}
+            <form method="post" action="{{ url_for('teacher.reopen_session',session_id=s.id) }}"><button class="btn small orange">Reopen</button></form>
+            {% endif %}
+          </div>
+        </article>
+        {% else %}
+        <div class="teacher-dashboard-empty"><span>＋</span><h3>Create your first live doubt session</h3><p>Your QR code, join link, live voting queue, resources, and analytics will appear here.</p><a class="btn" href="{{ url_for('teacher.create_session') }}">Create Session</a></div>
+        {% endfor %}
+      </div>
+      {% include 'partials/pagination.html' %}
+    </div>
+
+    <aside class="teacher-dashboard-rail">
+      <section class="td-rail-card td-rail-gradient">
+        <span class="section-kicker">Fast workflow</span>
+        <h2>Run a smooth live class</h2>
+        <div class="td-flow-step"><b>01</b><span>Create the session and share QR.</span></div>
+        <div class="td-flow-step"><b>02</b><span>Open Live Focus on the classroom screen.</span></div>
+        <div class="td-flow-step"><b>03</b><span>Complete the highest-voted doubts first.</span></div>
+        <div class="td-flow-step"><b>04</b><span>Review the question bank and analytics.</span></div>
+      </section>
+      <section class="td-rail-card">
+        <span class="section-kicker">Quick access</span>
+        <div class="td-quick-links">
+          <a href="{{ url_for('teacher.question_bank') }}"><span>🏦</span><div><b>Question Bank</b><small>Open and completed questions</small></div></a>
+          <a href="{{ url_for('teacher.analytics') }}"><span>📊</span><div><b>Analytics</b><small>Topics, keywords and status</small></div></a>
+          <a href="{{ url_for('teacher.change_password') }}"><span>🔐</span><div><b>Security</b><small>Change teacher password</small></div></a>
+        </div>
+      </section>
+    </aside>
+  </section>
+</div>
+{% endblock %}

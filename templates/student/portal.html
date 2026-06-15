@@ -1,58 +1,66 @@
 {% extends 'public/base.html' %}
 {% block title %}{{ class_session.session_name }} — Student{% endblock %}
+{% block body_class %}{{ 'student-immersive-body' if immersive_mode else 'student-shell-body' }}{% endblock %}
 {% block body %}
-<div class="portal student-portal" id="studentPortal" data-session-id="{{ class_session.id }}" data-active-tab="{{ active_tab }}">
+<div class="portal student-portal student-portal-v14 {{ 'portal-immersive' if immersive_mode else '' }}" id="studentPortal" data-session-id="{{ class_session.id }}" data-active-tab="{{ active_tab }}">
+  {% if not immersive_mode %}
   <aside class="sidebar student-sidebar">
     <a class="brand" href="{{ url_for('student.portal',session_id=class_session.id) }}"><img src="{{ brand_logo }}" alt="Ask Your Doubt"></a>
     <nav class="side-nav">
-      <a class="{{ 'active' if active_tab=='ask' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='ask') }}">💬 Ask Doubt</a>
-      <a class="{{ 'active' if active_tab=='live' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='live') }}">⚡ Live Doubts</a>
-      <a class="{{ 'active' if active_tab=='answered' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='answered') }}">✅ Answered</a>
-      <a class="{{ 'active' if active_tab=='resources' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='resources') }}">📚 Resources</a>
+      <a class="{{ 'active' if active_tab=='ask' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='ask') }}">◌ Ask Doubt</a>
+      <a class="{{ 'active' if active_tab=='live' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='live') }}">● Live Doubts</a>
+      <a class="{{ 'active' if active_tab=='answered' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='answered') }}">✓ Answered</a>
+      <a class="{{ 'active' if active_tab=='resources' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='resources') }}">▣ Resources</a>
       <a href="{{ url_for('student.logout') }}">↪ Logout</a>
     </nav>
-    <div class="sidebar-foot">Private student experience. Your name and mobile remain hidden from the teacher’s live doubt screen.</div>
+    <div class="sidebar-foot">Your name and mobile stay private on the teacher’s live doubt screen.</div>
   </aside>
+  {% endif %}
 
-  <main class="main">
-    <header class="portal-top">
+  <main class="main {{ 'immersive-main' if immersive_mode else '' }}">
+    {% if not immersive_mode %}
+    <header class="portal-top student-portal-top">
       <button class="btn secondary small mobile-menu" data-mobile-menu>☰</button>
       <div><b>{{ class_session.session_name }}</b><div class="muted">Live student session</div></div>
       {% if class_session.ends_at %}<div class="session-timer">Time left <span class="countdown" data-countdown="{{ class_session.ends_at }}Z">--:--:--</span></div>{% endif %}
     </header>
+    {% endif %}
 
-    <div class="portal-content">
-      <section class="experience-hero student-hero">
-        <div class="experience-copy">
-          <span class="eyebrow"><span class="pulse-dot"></span>Live learning space</span>
+    <div class="portal-content {{ 'immersive-content' if immersive_mode else '' }}">
+      {% if not immersive_mode %}
+      <section class="student-welcome-v14">
+        <div class="student-welcome-copy">
+          <span class="student-live-label"><span class="pulse-dot"></span> Live learning space</span>
           <h1>Hello, {{ session.student_name }}</h1>
-          <p>{{ class_session.session_name }} · Ask with text and emojis, vote on another student’s question, and follow answers in realtime.</p>
-          <div class="student-hero-metrics">
-            <div><span>Remaining</span><strong id="remainingCount">{{ remaining }}</strong></div>
-            <div><span>Limit</span><strong>{{ class_session.question_limit }}</strong></div>
-            <div><span>File support</span><strong>10 MB</strong></div>
+          <p>Ask clearly, vote on a similar question, and follow the classroom answer flow without page refreshes.</p>
+          <div class="student-welcome-metrics">
+            <span><small>Remaining</small><b id="remainingCount">{{ remaining }}</b></span>
+            <span><small>Question limit</small><b>{{ class_session.question_limit }}</b></span>
+            <span><small>File support</small><b>10 MB</b></span>
           </div>
         </div>
-        <div class="kinetic-scene student-scene" aria-hidden="true">
-          <div class="kinetic-orbit orbit-one"></div><div class="kinetic-orbit orbit-two"></div>
-          <div class="kinetic-core chat-core"><span>💬</span></div>
-          <div class="kinetic-chip chip-a">ASK</div><div class="kinetic-chip chip-b">VOTE</div><div class="kinetic-chip chip-c">LEARN</div>
+        <div class="student-welcome-visual commercial-hero-visual" aria-hidden="true">
+          <span class="commercial-hero-glow"></span>
+          <img src="{{ url_for('static',filename='img/student-learning-3d.svg') }}" alt="" loading="eager">
+          <span class="scene-status scene-status-live"><i></i> Live class</span>
+          <span class="scene-status scene-status-private">Private identity</span>
         </div>
       </section>
 
       {% include 'partials/flashes.html' %}
-      <div class="tabs premium-tabs" aria-label="Student portal tabs">
-        <a class="tab {{ 'active' if active_tab=='ask' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='ask') }}">💬 Ask</a>
-        <a class="tab {{ 'active' if active_tab=='live' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='live') }}">⚡ Live</a>
-        <a class="tab {{ 'active' if active_tab=='answered' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='answered') }}">✅ Answered</a>
-        <a class="tab {{ 'active' if active_tab=='resources' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='resources') }}">📚 Resources</a>
+      <div class="tabs premium-tabs student-tabs-v14" aria-label="Student portal tabs">
+        <a class="tab {{ 'active' if active_tab=='ask' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='ask') }}">◌ Ask</a>
+        <a class="tab {{ 'active' if active_tab=='live' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='live') }}">● Live</a>
+        <a class="tab {{ 'active' if active_tab=='answered' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='answered') }}">✓ Answered</a>
+        <a class="tab {{ 'active' if active_tab=='resources' }}" href="{{ url_for('student.set_tab',session_id=class_session.id,tab='resources') }}">▣ Resources</a>
       </div>
+      {% endif %}
 
       {% if active_tab=='ask' %}
-      <section class="student-action-grid">
-        <div class="panel chat-panel">
+      <section class="student-action-grid student-action-v14">
+        <div class="panel chat-panel student-composer-v14">
           <div class="live-panel-head">
-            <div><span class="section-kicker">Interactive composer</span><h2>Write your doubt</h2><p>Text is compulsory. A document or image is optional up to 10 MB.</p></div>
+            <div><span class="section-kicker">Interactive composer</span><h2>Write your doubt</h2><p>Text is compulsory. Add an optional document or image up to 10 MB.</p></div>
             <span class="pill"><span id="usedCount">{{ used }}</span>/{{ class_session.question_limit }} used</span>
           </div>
           <div class="progress"><span id="usageBar" style="width:{{ (used / class_session.question_limit * 100) if class_session.question_limit else 0 }}%"></span></div>
@@ -60,13 +68,23 @@
             <div class="emoji-bar">{% for emoji in ['😀','🤔','🙏','📐','🧪','💡','❓','👍','🔥','📚'] %}<button class="emoji-btn" type="button" data-emoji="{{ emoji }}" data-target="#question">{{ emoji }}</button>{% endfor %}</div>
             <div class="form-group"><label for="question">Your question</label><textarea id="question" name="question" maxlength="50000" required placeholder="Type your doubt like a chat message..."></textarea></div>
             <div class="composer-footer">
-              <label class="file-drop" for="attachment"><span>📎 Optional document or image</span><small>PDF, Word, TXT, JPG, PNG, WEBP · max 10 MB</small></label>
-              <input id="attachment" class="sr-only" type="file" name="attachment" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp">
-              <button class="btn send-button" type="submit">Send Doubt <span>➜</span></button>
+              <div class="file-picker-shell" data-file-picker>
+                <label class="file-drop" for="attachment">
+                  <span class="file-drop-icon">+</span>
+                  <span class="file-drop-copy"><b>Add attachment</b><small>PDF, Word, TXT, JPG, PNG or WEBP · max 10 MB</small></span>
+                </label>
+                <input id="attachment" class="sr-only" type="file" name="attachment" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp" data-file-input>
+                <div class="file-selection" data-file-selection hidden>
+                  <span class="file-selection-icon">✓</span>
+                  <span class="file-selection-copy"><b data-file-name>No file selected</b><small data-file-size></small></span>
+                  <button class="file-remove" type="button" data-file-remove aria-label="Remove selected file">Remove</button>
+                </div>
+              </div>
+              <button class="btn send-button" type="submit" data-submit-label="Sending doubt…">Send Doubt <span>→</span></button>
             </div>
           </form>
         </div>
-        <aside class="panel student-guide-card">
+        <aside class="panel student-guide-card student-guide-v14">
           <span class="section-kicker">Live classroom flow</span><h2>Ask. Vote. Understand.</h2>
           <div class="guide-step"><b>01</b><span>Ask clearly using text and emojis.</span></div>
           <div class="guide-step"><b>02</b><span>Watch new doubts appear silently.</span></div>
@@ -77,22 +95,56 @@
       {% endif %}
 
       {% if active_tab=='live' %}
-      <section class="panel live-focus-panel student-live-panel">
-        <div class="live-panel-head"><div><span class="section-kicker">Classroom pulse</span><h2>Live doubts</h2><p>Highest-voted questions appear first. Updates happen silently in the background.</p></div><span class="live-badge"><span class="pulse-dot"></span> Auto update</span></div>
-        <div id="studentLiveDoubts" class="doubt-list live-doubt-stream"><div class="empty premium-empty"><span class="loading-sphere"></span>Connecting to live doubts…</div></div>
-        <div class="live-pagination" id="studentLivePagination">
-          <div class="live-page-size"><label for="studentPerPage">Show top</label><select id="studentPerPage"><option value="100">100</option><option value="250">250</option><option value="500">500</option></select><span>doubts</span></div>
-          <div class="live-page-nav"><button class="page-nav" id="studentPrevPage" type="button">← Previous</button><span id="studentPageInfo">Page 1 / 1</span><button class="page-nav" id="studentNextPage" type="button">Next →</button></div>
-        </div>
+      <section id="studentFocusStage" class="student-focus-stage {{ 'student-focus-route' if immersive_mode else '' }}" tabindex="-1">
+        <header class="student-focus-toolbar">
+          <div class="student-focus-identity">
+            <span class="student-focus-pulse"><i></i></span>
+            <div><b>{{ class_session.session_name }}</b><small>Live Doubt Focus · {{ session.student_name }}</small></div>
+          </div>
+          <div class="student-focus-actions">
+            {% if class_session.ends_at %}<span class="focus-timer" data-countdown="{{ class_session.ends_at }}Z">--:--:--</span>{% endif %}
+            <button class="focus-tool-button live-size-toggle" type="button" data-minimize-target="#studentFocusStage" aria-expanded="true">Minimize</button>
+            {% if immersive_mode %}
+            <a class="focus-tool-button" href="{{ url_for('student.portal',session_id=class_session.id,tab='live') }}">Return to Original Size</a>
+            {% else %}
+            <button class="focus-tool-button" type="button" data-fullscreen-target="#studentFocusStage">Maximize</button>
+            <a class="focus-tool-button" href="{{ url_for('student.live_focus',session_id=class_session.id) }}" target="_blank" rel="noopener">New Window ↗</a>
+            <button class="focus-tool-button" type="button" data-exit-fullscreen hidden>Return to Original Size</button>
+            {% endif %}
+          </div>
+        </header>
+
+        <section class="panel live-focus-panel student-live-panel student-live-v14">
+          <div class="live-panel-head">
+            <div><span class="section-kicker">Classroom pulse</span><h2>Live doubts</h2><p>Highest-voted questions appear first. Updates happen silently in the background.</p></div>
+            <div class="student-live-head-tools"><span class="live-badge"><span class="pulse-dot"></span> Auto update</span>{% if not immersive_mode %}<button class="focus-icon-button" type="button" data-fullscreen-target="#studentFocusStage" aria-label="Open full screen">⛶</button>{% endif %}</div>
+          </div>
+          <div id="studentLiveDoubts" class="doubt-list live-doubt-stream" aria-live="polite" aria-atomic="false"><div class="empty premium-empty"><span class="loading-sphere"></span>Connecting to live doubts…</div></div>
+          <div class="live-pagination" id="studentLivePagination">
+            <div class="live-page-size"><label for="studentPerPage">Show top</label><select id="studentPerPage"><option value="100">100</option><option value="250">250</option><option value="500">500</option></select><span>doubts</span></div>
+            <div class="live-page-nav"><button class="page-nav" id="studentPrevPage" type="button">← Previous</button><span id="studentPageInfo">Page 1 / 1</span><button class="page-nav" id="studentNextPage" type="button">Next →</button></div>
+          </div>
+        </section>
       </section>
       {% endif %}
 
       {% if active_tab=='answered' %}
-      <section class="panel answered-panel"><div class="live-panel-head"><div><span class="section-kicker">Classroom history</span><h2>Completed in class</h2><p>Answered questions remain hidden until you open them.</p></div><span class="pill">Dropdown view</span></div><div id="studentAnsweredDoubts" class="doubt-list"><div class="empty">Loading answered questions…</div></div></section>
+      <section class="panel answered-panel student-light-panel commercial-content-panel">
+        <div class="live-panel-head"><div><span class="section-kicker">Classroom history</span><h2>Completed questions</h2><p>Every completed question stays clearly visible for review.</p></div><span class="content-count-badge">Answered</span></div>
+        <div id="studentAnsweredDoubts" class="answered-list"><div class="empty">Loading completed questions…</div></div>
+        <div class="live-pagination answered-pagination">
+          <div class="live-page-size"><label for="answeredPerPage">Show</label><select id="answeredPerPage"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select><span>answered</span></div>
+          <div class="live-page-nav"><button class="page-nav" id="answeredPrevPage" type="button">← Previous</button><span id="answeredPageInfo">Page 1 / 1</span><button class="page-nav" id="answeredNextPage" type="button">Next →</button></div>
+        </div>
+      </section>
       {% endif %}
 
       {% if active_tab=='resources' %}
-      <section class="panel resources-panel"><div class="live-panel-head"><div><span class="section-kicker">Teacher library</span><h2>Shared resources</h2><p>Open or download resources directly when your teacher shares them.</p></div><span class="live-badge">Available now</span></div><div id="studentResources" class="resource-grid"><div class="empty">Loading resources…</div></div><div class="live-pagination"><div class="live-page-size"><label for="resourcePerPage">Show</label><select id="resourcePerPage"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select><span>resources</span></div><div class="live-page-nav"><button class="page-nav" id="resourcePrevPage" type="button">← Previous</button><span id="resourcePageInfo">Page 1 / 1</span><button class="page-nav" id="resourceNextPage" type="button">Next →</button></div></div></section>
+      <section class="panel resources-panel student-light-panel commercial-content-panel">
+        <div class="live-panel-head"><div><span class="section-kicker">Teacher library</span><h2>Shared resources</h2><p>Files, notes and lesson links shared for this session.</p></div><span class="content-count-badge">Ready to open</span></div>
+        <div id="studentResources" class="commercial-resource-grid"><div class="empty">Loading resources…</div></div>
+        <div class="live-pagination"><div class="live-page-size"><label for="resourcePerPage">Show</label><select id="resourcePerPage"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select><span>resources</span></div><div class="live-page-nav"><button class="page-nav" id="resourcePrevPage" type="button">← Previous</button><span id="resourcePageInfo">Page 1 / 1</span><button class="page-nav" id="resourceNextPage" type="button">Next →</button></div></div>
+      </section>
       {% endif %}
     </div>
   </main>
@@ -103,8 +155,12 @@
   const sessionId = {{ class_session.id }};
   const active = {{ active_tab|tojson }};
   let last = '';
+  let loading = false;
+  const POLL_INTERVAL_MS = 1000;
   let livePage = Number(localStorage.getItem(`ayd-student-live-page-${sessionId}`) || 1);
   let livePerPage = Number(localStorage.getItem('ayd-student-live-size') || 100);
+  let answeredPage = Number(localStorage.getItem(`ayd-student-answered-page-${sessionId}`) || 1);
+  let answeredPerPage = Number(localStorage.getItem('ayd-student-answered-size') || 10);
   let resourcePage = Number(localStorage.getItem(`ayd-resource-page-${sessionId}`) || 1);
   let resourcePerPage = Number(localStorage.getItem('ayd-resource-size') || 10);
   let knownIds = new Set();
@@ -134,17 +190,35 @@
     document.querySelector('#resourcePerPage').value = String(pager.per_page);
   }
 
+  function renderAnsweredPager(pager) {
+    answeredPage = pager.page;
+    localStorage.setItem(`ayd-student-answered-page-${sessionId}`, String(answeredPage));
+    document.querySelector('#answeredPageInfo').textContent = `Page ${pager.page} / ${pager.pages} · ${pager.total} answered`;
+    document.querySelector('#answeredPrevPage').disabled = !pager.has_prev;
+    document.querySelector('#answeredNextPage').disabled = !pager.has_next;
+    document.querySelector('#answeredPerPage').value = String(pager.per_page);
+  }
+
   async function load() {
+    if (loading) return;
+    loading = true;
     try {
-      const url = `/api/student/session/${sessionId}?page=${livePage}&per_page=${livePerPage}&resource_page=${resourcePage}&resource_per_page=${resourcePerPage}`;
-      const response = await fetch(url, {cache:'no-store'});
+      const url = `/api/student/session/${sessionId}?page=${livePage}&per_page=${livePerPage}&answered_page=${answeredPage}&answered_per_page=${answeredPerPage}&resource_page=${resourcePage}&resource_per_page=${resourcePerPage}`;
+      const response = await fetch(url, {cache:'no-store', credentials:'same-origin'});
       const data = await response.json();
       if (data.closed) { location.reload(); return; }
       if (!response.ok) throw new Error(data.error || 'Live data unavailable');
-      const key = JSON.stringify(data);
+      document.querySelectorAll('#remainingCount').forEach((node) => { node.textContent = data.session.remaining; });
+      const signature = active === 'live'
+        ? {open:data.open, pagination:data.pagination}
+        : active === 'answered'
+          ? {completed:data.completed, pagination:data.answered_pagination}
+          : active === 'resources'
+            ? {resources:data.resources, pagination:data.resource_pagination}
+            : {remaining:data.session.remaining};
+      const key = JSON.stringify(signature);
       if (key === last) return;
       last = key;
-      document.querySelector('#remainingCount').textContent = data.session.remaining;
 
       if (active === 'live') {
         const box = document.querySelector('#studentLiveDoubts');
@@ -155,18 +229,22 @@
       }
       if (active === 'answered') {
         const box = document.querySelector('#studentAnsweredDoubts');
-        box.innerHTML = data.completed.length ? data.completed.map((doubt) => `<details class="doubt-card answered-card"><summary><span>${doubt.is_mine?'<span class="pill mine">My Question</span>':''}<b>${esc(doubt.question)}</b></span><span class="pill vote">${doubt.votes} votes</span></summary>${doubt.download_url?`<p><a class="btn mini secondary" href="${doubt.download_url}">Download allowed attachment</a></p>`:''}</details>`).join('') : '<div class="empty">No completed questions yet.</div>';
+        const answeredOffset = (data.answered_pagination.page - 1) * data.answered_pagination.per_page;
+        box.innerHTML = data.completed.length ? data.completed.map((doubt, index) => `<article class="answered-item"><div class="answered-index">${String(answeredOffset + index + 1).padStart(2,'0')}</div><div class="answered-copy"><div class="answered-meta">${doubt.is_mine?'<span class="pill mine">My Question</span>':''}<span class="answered-status">Completed</span><span>${doubt.votes} same doubt${doubt.votes===1?'':'s'}</span></div><h3>${esc(doubt.question)}</h3>${doubt.download_url?`<a class="resource-open-link" href="${doubt.download_url}">Download attachment →</a>`:''}</div><span class="answered-check">✓</span></article>`).join('') : '<div class="empty">No completed questions yet.</div>';
+        renderAnsweredPager(data.answered_pagination);
       }
       if (active === 'resources') {
         const box = document.querySelector('#studentResources');
-        box.innerHTML = data.resources.length ? data.resources.map((resource) => `<article class="resource-card premium-resource"><span class="resource-glow"></span><span class="pill">${esc(resource.type)}</span><h3>${esc(resource.title)}</h3>${resource.notes?`<p>${esc(resource.notes)}</p>`:''}${resource.download_url?`<a class="btn mini" href="${resource.download_url}" ${resource.video_url?'target="_blank" rel="noopener"':''}>Open resource</a>`:''}</article>`).join('') : '<div class="empty">No resources shared yet.</div>';
+        const iconFor = (type) => ({VIDEO:'▶',NOTE:'N',PDF:'P',PPT:'S',PPTX:'S',JPG:'I',JPEG:'I',PNG:'I',WEBP:'I',DOC:'D',DOCX:'D',TXT:'T'}[String(type||'').toUpperCase()] || 'F');
+        box.innerHTML = data.resources.length ? data.resources.map((resource) => `<article class="commercial-resource-card"><div class="resource-card-top"><span class="resource-format-icon">${iconFor(resource.type)}</span><span class="resource-format-label">${esc(resource.type)}</span></div><h3>${esc(resource.title)}</h3>${resource.notes?`<p>${esc(resource.notes)}</p>`:'<p class="resource-placeholder">Shared learning material</p>'}<div class="resource-card-footer">${resource.download_url?`<a class="resource-open-link" href="${resource.download_url}" ${resource.video_url?'target="_blank" rel="noopener"':''}>Open resource →</a>`:'<span class="resource-open-link disabled">Note available</span>'}</div></article>`).join('') : '<div class="empty">No resources shared yet.</div>';
         renderResourcePager(data.resource_pagination);
       }
-    } catch (error) { console.error(error); }
+    } catch (error) { console.debug('Silent live update retry', error); }
+    finally { loading = false; }
   }
 
   async function vote(id) {
-    const response = await fetch(`/api/student/doubt/${id}/vote`, {method:'POST'});
+    const response = await fetch(`/api/student/doubt/${id}/vote`, {method:'POST', credentials:'same-origin'});
     const data = await response.json();
     if (!response.ok) { alert(data.error || 'Unable to vote'); return; }
     last = ''; load();
@@ -177,13 +255,19 @@
     document.querySelector('#studentPrevPage').addEventListener('click', () => { if(livePage>1){livePage-=1;last='';load();} });
     document.querySelector('#studentNextPage').addEventListener('click', () => { livePage+=1;last='';load(); });
   }
+  if (active === 'answered') {
+    document.querySelector('#answeredPerPage').addEventListener('change', (event) => { answeredPerPage=Number(event.target.value); answeredPage=1; last=''; localStorage.setItem('ayd-student-answered-size', String(answeredPerPage)); load(); });
+    document.querySelector('#answeredPrevPage').addEventListener('click', () => { if(answeredPage>1){answeredPage-=1;last='';load();} });
+    document.querySelector('#answeredNextPage').addEventListener('click', () => { answeredPage+=1;last='';load(); });
+  }
   if (active === 'resources') {
     document.querySelector('#resourcePerPage').addEventListener('change', (event) => { resourcePerPage=Number(event.target.value); resourcePage=1; last=''; localStorage.setItem('ayd-resource-size', String(resourcePerPage)); load(); });
     document.querySelector('#resourcePrevPage').addEventListener('click', () => { if(resourcePage>1){resourcePage-=1;last='';load();} });
     document.querySelector('#resourceNextPage').addEventListener('click', () => { resourcePage+=1;last='';load(); });
   }
   load();
-  setInterval(load,1000);
+  window.setInterval(load, POLL_INTERVAL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { last=''; load(); } });
 })();
 </script>
 {% endblock %}

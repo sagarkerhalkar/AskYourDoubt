@@ -8,6 +8,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urlparse
 
 import qrcode
 from flask import current_app
@@ -37,6 +38,16 @@ def verify_and_upgrade_password(stored: str, supplied: str) -> tuple[bool, str |
     if secrets.compare_digest(stored, supplied):
         return True, generate_password_hash(supplied)
     return False, None
+
+
+
+def valid_http_url(value: str) -> bool:
+    """Allow only absolute HTTP(S) links for shared external resources."""
+    try:
+        parsed = urlparse((value or '').strip())
+    except ValueError:
+        return False
+    return parsed.scheme in {'http', 'https'} and bool(parsed.netloc)
 
 
 def validate_mobile(mobile: str) -> bool:
