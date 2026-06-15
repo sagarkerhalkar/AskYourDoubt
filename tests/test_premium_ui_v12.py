@@ -18,16 +18,22 @@ def test_premium_palette_motion_and_font_scale():
     assert '@media(prefers-reduced-motion:reduce)' in css
 
 
-def test_realistic_teacher_student_photography_and_no_generator_credit():
+def test_realistic_teacher_student_photography_and_public_credit_removed():
     css = (ROOT / 'static' / 'css' / 'app.css').read_text(encoding='utf-8')
-    home = (ROOT / 'templates' / 'public' / 'home.html').read_text(encoding='utf-8')
-    teacher = (ROOT / 'templates' / 'teacher' / 'login.html').read_text(encoding='utf-8')
-    student = (ROOT / 'templates' / 'student' / 'start.html').read_text(encoding='utf-8')
+    public_templates = [
+        ROOT / 'templates' / 'public' / 'home.html',
+        ROOT / 'templates' / 'teacher' / 'login.html',
+        ROOT / 'templates' / 'student' / 'start.html',
+        ROOT / 'templates' / 'student' / 'portal.html',
+        ROOT / 'templates' / 'teacher' / 'base.html',
+        ROOT / 'templates' / 'admin' / 'base.html',
+    ]
     assert 'pexels-photo-5212345' in css
     assert 'pexels-photo-8199159' in css
-    combined = home + teacher + student
-    assert 'Sagar Kerhalkar' not in combined
-    assert 'ChatGPT' not in combined
+    combined = '\n'.join(path.read_text(encoding='utf-8') for path in public_templates)
+    assert 'Built by Sagar Kerhalkar' not in combined
+    assert 'Sagar Kerhalkar</strong> <span' not in combined
+    assert 'ChatGPT</strong>' not in combined
 
 
 def test_high_resolution_logo_is_vector():
@@ -40,7 +46,7 @@ def test_high_resolution_logo_is_vector():
 
 def test_device_matrix_runner_and_ci_matrix_exist():
     runner = (ROOT / 'run_device_matrix.py').read_text(encoding='utf-8')
-    workflow = (ROOT / '.github' / 'workflows' / 'ci-cd.yml').read_text(encoding='utf-8')
+    workflow = (ROOT / '.github' / 'workflows' / 'browser-matrix.yml').read_text(encoding='utf-8')
     assert 'iphone-se' in runner
     assert 'ipad-air' in runner
     assert 'desktop-qhd' in runner

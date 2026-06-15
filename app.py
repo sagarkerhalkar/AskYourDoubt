@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import os
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 
 from config import Config
 from db import init_app as init_db
@@ -40,6 +39,16 @@ def create_app(test_config: dict | None = None) -> Flask:
     def too_large(_):
         return render_template('public/error.html', code=413, title='File too large', message='The maximum upload size is 10 MB.'), 413
 
+    @app.after_request
+    def add_security_and_cache_headers(response):
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+        if request.path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store, max-age=0'
+        return response
+
     @app.context_processor
     def inject_brand():
         from db import get_db
@@ -52,4 +61,4 @@ def create_app(test_config: dict | None = None) -> Flask:
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv('AYD_PORT', '9000')), debug=os.getenv('AYD_DEBUG') == '1')
+    app.run(host='0.0.0.0', port=app.config['PORT'], debug=app.config['DEBUG'])

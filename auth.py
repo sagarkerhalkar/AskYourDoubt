@@ -8,6 +8,30 @@ from flask import redirect, session, url_for
 F = TypeVar('F', bound=Callable)
 
 
+ROLE_SESSION_KEYS = {
+    "admin": ("admin_id", "admin_name"),
+    "teacher": ("teacher_id", "teacher_name"),
+    "student": (
+        "student_id",
+        "student_name",
+        "student_mobile",
+        "student_session_id",
+        "student_active_tab",
+    ),
+}
+
+
+def clear_role_session(role: str) -> None:
+    """Remove only one portal identity without logging out other portal roles.
+
+    Teacher, student, and admin pages are often tested in separate tabs/windows of
+    the same browser. Flask uses one cookie for that browser, so session.clear()
+    would sign every role out. Scoped cleanup keeps those portals independent.
+    """
+    for key in ROLE_SESSION_KEYS.get(role, ()):
+        session.pop(key, None)
+
+
 def admin_required(view: F) -> F:
     @wraps(view)
     def wrapped(*args, **kwargs):

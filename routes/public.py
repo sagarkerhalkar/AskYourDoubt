@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 
 from db import get_db
 
@@ -12,9 +12,11 @@ def home():
     return render_template('public/home.html')
 
 
-@bp.route('/healthz')
+@bp.get('/healthz')
 def healthz():
-    return {'status': 'ok'}, 200
+    """Lightweight container/load-balancer health endpoint."""
+    get_db().execute('SELECT 1').fetchone()
+    return jsonify(status='ok', service='askyourdoubt'), 200
 
 
 @bp.route('/student', methods=['GET', 'POST'])

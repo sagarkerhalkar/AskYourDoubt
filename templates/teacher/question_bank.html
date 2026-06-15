@@ -1,1 +1,73 @@
-{% extends 'teacher/base.html' %}{% block title %}Question Bank{% endblock %}{% block content %}<section class="page-head"><div><span class="eyebrow">Smart Repository</span><h1>Question Bank</h1><p>Open and completed doubts are stored automatically. Skipped doubts are excluded.</p></div><div class="doubt-actions"><a class="btn" href="{{ url_for('teacher.question_bank_csv') }}">Download Question Bank</a><a class="btn secondary" href="{{ url_for('teacher.all_questions_csv') }}">Download All Session Questions</a></div></section><section class="panel"><div class="tabs"><a class="tab {{ 'active' if selected_status=='ALL' }}" href="{{ url_for('teacher.question_bank') }}">All</a><a class="tab {{ 'active' if selected_status=='OPEN' }}" href="{{ url_for('teacher.question_bank',status='OPEN') }}">Open</a><a class="tab {{ 'active' if selected_status=='COMPLETED' }}" href="{{ url_for('teacher.question_bank',status='COMPLETED') }}">Completed</a></div><form method="get" action="{{ url_for('teacher.question_bank_csv') }}" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px"><select name="session_id"><option value="">All sessions</option>{% for s in sessions %}<option value="{{ s.id }}">{{ s.session_name }} — {{ s.created_at }}</option>{% endfor %}</select><button class="btn small orange">Download Selected Session</button></form>{% for q in questions %}<article class="question-bank-card"><div class="doubt-meta"><span class="pill {{ 'badge-completed' if q.status=='COMPLETED' else 'badge-open' }}">{{ q.status }}</span><span class="pill">{{ q.category }}</span><span class="pill">{{ q.keyword }}</span><span class="pill vote">{{ q.total_votes or 0 }} votes</span></div><div class="doubt-question">{{ q.question }}</div><div class="muted" style="margin-top:8px">{{ q.session_name }} · {{ q.session_date }}</div></article>{% else %}<div class="empty">No question bank items yet.</div>{% endfor %}{% include 'partials/pagination.html' %}</section>{% endblock %}
+{% extends 'teacher/base.html' %}
+{% block title %}Question Bank{% endblock %}
+{% block content %}
+<section class="page-head commercial-page-head">
+  <div class="page-head-copy">
+    <span class="eyebrow commercial-eyebrow">Knowledge repository</span>
+    <h1>Question Bank</h1>
+    <p>Search, review and export open or completed classroom questions. Skipped doubts remain excluded.</p>
+  </div>
+  <div class="page-head-actions">
+    <a class="btn" href="{{ url_for('teacher.question_bank_csv') }}">Export question bank</a>
+    <a class="btn secondary" href="{{ url_for('teacher.all_questions_csv') }}">Export all sessions</a>
+  </div>
+</section>
+
+<section class="panel question-bank-workspace">
+  <div class="question-bank-toolbar">
+    <nav class="segmented-filter" aria-label="Question status filter">
+      <a class="{{ 'active' if selected_status=='ALL' }}" href="{{ url_for('teacher.question_bank', session_id=selected_session_id or None) }}">All</a>
+      <a class="{{ 'active' if selected_status=='OPEN' }}" href="{{ url_for('teacher.question_bank', status='OPEN', session_id=selected_session_id or None) }}">Open</a>
+      <a class="{{ 'active' if selected_status=='COMPLETED' }}" href="{{ url_for('teacher.question_bank', status='COMPLETED', session_id=selected_session_id or None) }}">Completed</a>
+    </nav>
+
+    <form class="session-filter-form" method="get" action="{{ url_for('teacher.question_bank') }}">
+      {% if selected_status != 'ALL' %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+      <label for="questionBankSession">View session questions</label>
+      <select id="questionBankSession" name="session_id" onchange="this.form.submit()">
+        <option value="">All teacher sessions</option>
+        {% for s in sessions %}
+          <option value="{{ s.id }}" {{ 'selected' if selected_session_id==s.id }}>
+            {{ s.session_name }} · {{ s.question_count }} question{{ '' if s.question_count==1 else 's' }} · {{ s.created_at }}
+          </option>
+        {% endfor %}
+      </select>
+      <button class="btn small" type="submit">Show questions</button>
+      {% if selected_session_id %}<a class="btn secondary small" href="{{ url_for('teacher.question_bank', status=selected_status if selected_status!='ALL' else None) }}">Clear session</a>{% endif %}
+    </form>
+  </div>
+
+  <div class="question-bank-context">
+    <div>
+      <span class="section-kicker">Current view</span>
+      <h2>{% if selected_session %}{{ selected_session.session_name }}{% else %}All teacher sessions{% endif %}</h2>
+      <p>{{ pager.total }} {{ selected_status|lower if selected_status!='ALL' else '' }} question{{ '' if pager.total==1 else 's' }} shown.</p>
+    </div>
+    <div class="question-bank-context-actions">
+      <a class="btn secondary small" href="{{ url_for('teacher.question_bank_csv', session_id=selected_session_id or None, status=selected_status if selected_status!='ALL' else None) }}">Export current view</a>
+      {% if selected_session_id %}<a class="btn secondary small" href="{{ url_for('teacher.session_questions_csv', session_id=selected_session_id) }}">Export full session</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="question-bank-list">
+    {% for q in questions %}
+    <article class="question-bank-card commercial-question-card">
+      <div class="question-card-marker {{ 'is-completed' if q.status=='COMPLETED' else 'is-open' }}"></div>
+      <div class="question-card-body">
+        <div class="question-card-meta">
+          <span class="status-chip {{ 'is-completed' if q.status=='COMPLETED' else 'is-open' }}">{{ q.status|title }}</span>
+          <span>{{ q.category }}</span>
+          <span>{{ q.keyword }}</span>
+          <span>{{ q.total_votes or 0 }} same doubts</span>
+        </div>
+        <h2>{{ q.question }}</h2>
+        <p>{{ q.session_name }} <span>•</span> {{ q.session_date }}</p>
+      </div>
+    </article>
+    {% else %}
+    <div class="empty commercial-empty">No question bank items match this filter.</div>
+    {% endfor %}
+  </div>
+  {% include 'partials/pagination.html' %}
+</section>
+{% endblock %}

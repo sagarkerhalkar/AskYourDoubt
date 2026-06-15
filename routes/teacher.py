@@ -12,9 +12,9 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash
 
-from auth import teacher_required
+from auth import clear_role_session, teacher_required
 from db import get_db, transaction
-from utils import (create_qr, pagination_args, pagination_meta, rows_to_csv, save_upload, session_end_time, verify_and_upgrade_password)
+from utils import (create_qr, pagination_args, pagination_meta, rows_to_csv, save_upload, session_end_time, valid_http_url, verify_and_upgrade_password)
 
 bp = Blueprint('teacher', __name__)
 
@@ -56,7 +56,7 @@ def login():
                 if upgraded:
                     with transaction() as tx:
                         tx.execute('UPDATE teachers SET password=? WHERE id=?', (upgraded, row['id']))
-                session.clear()
+                clear_role_session('teacher')
                 session.permanent = True
                 session['teacher_id'] = row['id']
                 session['teacher_name'] = row['name']
@@ -92,7 +92,9 @@ def dashboard():
         SELECT COUNT(DISTINCT s.id) AS sessions,
                COUNT(d.id) AS doubts,
                SUM(CASE WHEN d.status='OPEN' THEN 1 ELSE 0 END) AS open_count,
-               SUM(CASE WHEN d.status='COMPLETED' THEN 1 ELSE 0 END) AS completed_count
+               SUM(CASE WHEN d.status='COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+               COUNT(DISTINCT CASE WHEN s.status='ACTIVE' THEN s.id END) AS active_sessions,
+               COALESCE(SUM(d.votes),0) AS total_votes
         FROM sessions s LEFT JOIN doubts d ON d.session_id=s.id
         WHERE s.teacher_id=?
         ''',
@@ -149,6 +151,24 @@ def live_session(session_id: int):
     if not qr_path.exists():
         create_qr(session_id)
     return render_template('teacher/live_session.html', class_session=class_session, join_url=join_url)
+
+
+@bp.route('/teacher/session/<int:session_id>/focus')
+@teacher_required
+def live_focus(session_id: int):
+    class_session = _teacher_session(session_id)
+    if not class_session:
+        return render_template('public/error.html', code=403, title='Access denied', message='This session does not belong to you.'), 403
+    join_url = f"{current_app.config['BASE_URL'].rstrip('/')}/join-session/{session_id}"
+    qr_path = Path(current_app.config['QR_FOLDER']) / f'session_{session_id}.png'
+    if not qr_path.exists():
+        create_qr(session_id)
+    return render_template(
+        'teacher/live_session.html',
+        class_session=class_session,
+        join_url=join_url,
+        immersive_mode=True,
+    )
 
 
 @bp.route('/teacher/session/<int:session_id>/qr')
@@ -251,6 +271,8 @@ def resources(session_id: int):
             flash('Resource title is required.', 'error')
         elif not any([file_path, video_url, notes]):
             flash('Add a file, video link, or note.', 'error')
+        elif video_url and not valid_http_url(video_url):
+            flash('Video link must start with http:// or https://.', 'error')
         else:
             if video_url:
                 resource_type = 'VIDEO'
@@ -375,29 +397,65 @@ def session_questions_csv(session_id: int):
     class_session = _teacher_session(session_id)
     if not class_session:
         return ('Access denied', 403)
-    rows = get_db().execute(
-        '''SELECT question, category, keyword, votes, status, created_at FROM doubts
-           WHERE session_id=? ORDER BY votes DESC, id DESC''',
-        (session_id,),
-    ).fetchall()
+
+    export_filter = request.args.get('filter', 'ALL').upper().strip()
+    if export_filter not in {'ALL', 'OPEN', 'COMPLETED', 'SKIPPED'}:
+        export_filter = 'ALL'
+
+    sql = '''SELECT question, category, keyword, votes, status, created_at FROM doubts
+             WHERE session_id=?'''
+    params: list[object] = [session_id]
+    if export_filter == 'ALL':
+        sql += " AND status IN ('OPEN','COMPLETED')"
+    else:
+        sql += ' AND status=?'
+        params.append(export_filter)
+    sql += ' ORDER BY votes DESC, id DESC'
+    rows = get_db().execute(sql, tuple(params)).fetchall()
+
     csv_file = rows_to_csv(
         ['Question', 'Category', 'Keyword', 'Votes', 'Status', 'Created At'],
         ([r['question'], r['category'], r['keyword'], r['votes'], r['status'], r['created_at']] for r in rows),
     )
-    return send_file(csv_file, as_attachment=True, download_name=f"session_{session_id}_questions.csv", mimetype='text/csv')
+    label = {'ALL': 'total_open_completed', 'OPEN': 'open', 'COMPLETED': 'completed', 'SKIPPED': 'skipped'}[export_filter]
+    safe_session = ''.join(ch if ch.isalnum() or ch in {'-', '_'} else '_' for ch in class_session['session_name']).strip('_') or f'session_{session_id}'
+    return send_file(
+        csv_file,
+        as_attachment=True,
+        download_name=f"{safe_session}_{label}_questions.csv",
+        mimetype='text/csv',
+    )
 
 
 @bp.route('/teacher/question-bank')
 @teacher_required
 def question_bank():
     db = get_db()
-    status = request.args.get('status', 'ALL')
+    status = request.args.get('status', 'ALL').upper().strip()
+    if status not in {'ALL', 'OPEN', 'COMPLETED'}:
+        status = 'ALL'
+
+    requested_session_id = request.args.get('session_id', '').strip()
+    selected_session_id = int(requested_session_id) if requested_session_id.isdigit() else None
+    selected_session = None
+    if selected_session_id is not None:
+        selected_session = db.execute(
+            'SELECT id, session_name, created_at, status FROM sessions WHERE id=? AND teacher_id=?',
+            (selected_session_id, session['teacher_id']),
+        ).fetchone()
+        if selected_session is None:
+            selected_session_id = None
+
     page, per_page = pagination_args(default=10)
     params = [session['teacher_id']]
     where_sql = ' WHERE teacher_id=?'
+    if selected_session_id is not None:
+        where_sql += ' AND session_id=?'
+        params.append(selected_session_id)
     if status in {'OPEN', 'COMPLETED'}:
         where_sql += ' AND status=?'
         params.append(status)
+
     total = db.execute('SELECT COUNT(*) AS c FROM repository' + where_sql, params).fetchone()['c']
     pager = pagination_meta(total, page, per_page)
     rows = db.execute(
@@ -405,12 +463,23 @@ def question_bank():
         [*params, per_page, (pager['page'] - 1) * per_page],
     ).fetchall()
     sessions = db.execute(
-        'SELECT id, session_name, created_at FROM sessions WHERE teacher_id=? ORDER BY id DESC',
+        '''SELECT s.id, s.session_name, s.created_at, s.status,
+                  COUNT(r.id) AS question_count
+           FROM sessions s
+           LEFT JOIN repository r ON r.session_id=s.id AND r.teacher_id=s.teacher_id
+           WHERE s.teacher_id=?
+           GROUP BY s.id
+           ORDER BY s.id DESC''',
         (session['teacher_id'],),
     ).fetchall()
     return render_template(
-        'teacher/question_bank.html', questions=rows, sessions=sessions,
-        selected_status=status, pager=pager,
+        'teacher/question_bank.html',
+        questions=rows,
+        sessions=sessions,
+        selected_status=status,
+        selected_session_id=selected_session_id,
+        selected_session=selected_session,
+        pager=pager,
     )
 
 
@@ -418,12 +487,21 @@ def question_bank():
 @teacher_required
 def question_bank_csv():
     session_id = request.args.get('session_id', '').strip()
+    status = request.args.get('status', '').upper().strip()
     db = get_db()
     params = [session['teacher_id']]
     sql = 'SELECT question, category, keyword, total_votes, status, session_name, session_date FROM repository WHERE teacher_id=?'
     if session_id.isdigit():
-        sql += ' AND session_id=?'
-        params.append(int(session_id))
+        owned = db.execute(
+            'SELECT 1 FROM sessions WHERE id=? AND teacher_id=?',
+            (int(session_id), session['teacher_id']),
+        ).fetchone()
+        if owned:
+            sql += ' AND session_id=?'
+            params.append(int(session_id))
+    if status in {'OPEN', 'COMPLETED'}:
+        sql += ' AND status=?'
+        params.append(status)
     sql += ' ORDER BY id DESC'
     rows = db.execute(sql, params).fetchall()
     csv_file = rows_to_csv(
@@ -484,5 +562,5 @@ def change_password():
 
 @bp.route('/teacher-logout')
 def logout():
-    session.clear()
+    clear_role_session('teacher')
     return redirect(url_for('teacher.login'))
