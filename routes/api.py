@@ -88,6 +88,8 @@ def teacher_session_data(session_id: int):
         return jsonify({'error': 'unauthorized'}), 403
 
     page, per_page = _page_args(LIVE_PAGE_SIZES, 100)
+    completed_page, completed_per_page = _page_args(STANDARD_PAGE_SIZES, 10, 'completed_')
+    skipped_page, skipped_per_page = _page_args(STANDARD_PAGE_SIZES, 10, 'skipped_')
     db = get_db()
     class_session = db.execute('SELECT * FROM sessions WHERE id=?', (session_id,)).fetchone()
     if not class_session:
@@ -107,8 +109,14 @@ def teacher_session_data(session_id: int):
         (session_id,),
     ).fetchone()
     open_total = int(stats['open_count'] or 0)
+    completed_total = int(stats['completed_count'] or 0)
+    skipped_total = int(stats['skipped_count'] or 0)
     pager = _pagination(open_total, page, per_page, LIVE_PAGE_SIZES)
+    completed_pager = _pagination(completed_total, completed_page, completed_per_page, STANDARD_PAGE_SIZES)
+    skipped_pager = _pagination(skipped_total, skipped_page, skipped_per_page, STANDARD_PAGE_SIZES)
     offset = (pager['page'] - 1) * per_page
+    completed_offset = (completed_pager['page'] - 1) * completed_per_page
+    skipped_offset = (skipped_pager['page'] - 1) * skipped_per_page
 
     open_rows = db.execute(
         '''
@@ -126,18 +134,18 @@ def teacher_session_data(session_id: int):
         SELECT id, question, votes, status, created_at,
                CASE WHEN attachment_path IS NOT NULL AND attachment_path!='' THEN 1 ELSE 0 END AS has_attachment
         FROM doubts WHERE session_id=? AND status='COMPLETED'
-        ORDER BY completed_at DESC, id DESC LIMIT 30
+        ORDER BY completed_at DESC, id DESC LIMIT ? OFFSET ?
         ''',
-        (session_id,),
+        (session_id, completed_per_page, completed_offset),
     ).fetchall()
     skipped_rows = db.execute(
         '''
         SELECT id, question, votes, status, created_at,
                CASE WHEN attachment_path IS NOT NULL AND attachment_path!='' THEN 1 ELSE 0 END AS has_attachment
         FROM doubts WHERE session_id=? AND status='SKIPPED'
-        ORDER BY id DESC LIMIT 30
+        ORDER BY id DESC LIMIT ? OFFSET ?
         ''',
-        (session_id,),
+        (session_id, skipped_per_page, skipped_offset),
     ).fetchall()
 
     return jsonify({
@@ -146,20 +154,24 @@ def teacher_session_data(session_id: int):
             'name': class_session['session_name'],
             'status': class_session['status'],
             'ends_at': _iso(class_session['ends_at']),
+            'duration_seconds': class_session['duration_seconds'] if 'duration_seconds' in class_session.keys() else int(class_session['duration'] or 0) * 60,
             'question_limit': class_session['question_limit'],
             'allow_student_attachment_download': bool(class_session['allow_student_attachment_download']),
         },
         'stats': {
-            'total': stats['total'] or 0,
+            'total': open_total + completed_total,
+            'all_records': stats['total'] or 0,
             'open': open_total,
-            'completed': stats['completed_count'] or 0,
-            'skipped': stats['skipped_count'] or 0,
+            'completed': completed_total,
+            'skipped': skipped_total,
             'votes': stats['total_votes'] or 0,
         },
         'open': [_teacher_doubt(row) for row in open_rows],
         'completed': [_teacher_doubt(row) for row in completed_rows],
         'skipped': [_teacher_doubt(row) for row in skipped_rows],
         'pagination': pager,
+        'completed_pagination': completed_pager,
+        'skipped_pagination': skipped_pager,
     })
 
 
@@ -229,6 +241,7 @@ def student_session_data(session_id: int):
         return jsonify({'error': 'unauthorized'}), 403
 
     page, per_page = _page_args(LIVE_PAGE_SIZES, 100)
+    answered_page, answered_per_page = _page_args(STANDARD_PAGE_SIZES, 10, 'answered_')
     resource_page, resource_per_page = _page_args(STANDARD_PAGE_SIZES, 10, 'resource_')
     db = get_db()
     class_session = db.execute('SELECT * FROM sessions WHERE id=?', (session_id,)).fetchone()
@@ -258,6 +271,12 @@ def student_session_data(session_id: int):
         ''',
         (session['student_id'], session.get('student_mobile'), session_id, per_page, offset),
     ).fetchall()
+    completed_total = db.execute(
+        "SELECT COUNT(*) AS c FROM doubts WHERE session_id=? AND status='COMPLETED'",
+        (session_id,),
+    ).fetchone()['c']
+    answered_pager = _pagination(completed_total, answered_page, answered_per_page, STANDARD_PAGE_SIZES)
+    answered_offset = (answered_pager['page'] - 1) * answered_per_page
     completed_rows = db.execute(
         '''
         SELECT d.id, d.student_id, d.question, d.votes, d.status, d.created_at,
@@ -265,9 +284,9 @@ def student_session_data(session_id: int):
                EXISTS(SELECT 1 FROM doubt_votes v WHERE v.doubt_id=d.id AND (v.student_id=? OR (v.student_id IS NULL AND v.mobile=?))) AS voted
         FROM doubts d
         WHERE d.session_id=? AND d.status='COMPLETED'
-        ORDER BY d.completed_at DESC, d.id DESC LIMIT 30
+        ORDER BY d.completed_at DESC, d.id DESC LIMIT ? OFFSET ?
         ''',
-        (session['student_id'], session.get('student_mobile'), session_id),
+        (session['student_id'], session.get('student_mobile'), session_id, answered_per_page, answered_offset),
     ).fetchall()
 
     allow_download = bool(class_session['allow_student_attachment_download'])
@@ -308,6 +327,7 @@ def student_session_data(session_id: int):
         'completed': [_student_doubt(row, allow_download=allow_download) for row in completed_rows],
         'resources': resource_data,
         'pagination': pager,
+        'answered_pagination': answered_pager,
         'resource_pagination': resource_pager,
     })
 

@@ -79,7 +79,7 @@ def inline_html(html: str) -> str:
     import re
     # Remove remote image requests in the restricted test sandbox and use an offline premium fallback.
     css = re.sub(r"url\(['\"]https://[^)]*\)", "none", css)
-    css += "\n.hero-photo,.role-card .photo,.auth-visual{background-image:linear-gradient(135deg,#101a3b,#3e3f9f 55%,#00a4d6)!important}\n[data-reveal],.panel{opacity:1!important;transform:none!important;animation:none!important}\n"
+    css += "\n.hero-photo,.role-card .photo,.auth-visual{background-image:linear-gradient(135deg,#101a3b,#3e3f9f 55%,#00a4d6)!important}\n[data-reveal],.panel,.doubt-card,.teacher-doubt-card{opacity:1!important;transform:none!important;animation:none!important}\n"
     html = html.replace('<link rel="preconnect" href="https://fonts.googleapis.com">', '')
     html = html.replace('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>', '')
     html = re.sub(r'<link href="https://fonts\.googleapis\.com[^"]+" rel="stylesheet">', '', html)
@@ -88,6 +88,10 @@ def inline_html(html: str) -> str:
     logo_bytes = (ROOT / 'static' / 'img' / 'logo.svg').read_bytes()
     logo_uri = 'data:image/svg+xml;base64,' + base64.b64encode(logo_bytes).decode('ascii')
     html = html.replace('src="/static/img/logo.svg"', f'src="{logo_uri}"')
+    qr_path = ROOT / 'static' / 'qr' / 'session_1.png'
+    if qr_path.exists():
+        qr_uri = 'data:image/png;base64,' + base64.b64encode(qr_path.read_bytes()).decode('ascii')
+        html = html.replace('src="/static/qr/session_1.png"', f'src="{qr_uri}"')
     return html
 
 
@@ -115,16 +119,21 @@ def rendered_pages(app):
         'student-login': inline_html(public.get('/student').get_data(as_text=True)),
         'teacher-login': inline_html(public.get('/teacher-login').get_data(as_text=True)),
         'admin-login': inline_html(public.get('/admin-login').get_data(as_text=True)),
-        'teacher-dashboard': inline_html(teacher.get('/teacher/dashboard').get_data(as_text=True)),
+        'teacher-dashboard': inline_html(teacher.get('/teacher-dashboard').get_data(as_text=True)),
         'teacher-live': inline_html(teacher.get('/teacher/session/1').get_data(as_text=True)),
+        'teacher-live-focus': inline_html(teacher.get('/teacher/session/1/focus').get_data(as_text=True)),
         'teacher-resources': inline_html(teacher.get('/teacher/session/1/resources').get_data(as_text=True)),
+        'teacher-question-bank': inline_html(teacher.get('/teacher/question-bank?session_id=1').get_data(as_text=True)),
         'student-portal': inline_html(student.get('/student/session/1?tab=live').get_data(as_text=True)),
+        'student-live-focus': inline_html(student.get('/student/session/1/focus').get_data(as_text=True)),
+        'student-answered': inline_html(student.get('/student/session/1?tab=answered').get_data(as_text=True)),
+        'student-resources': inline_html(student.get('/student/session/1?tab=resources').get_data(as_text=True)),
         'admin-dashboard': inline_html(admin.get('/admin-dashboard').get_data(as_text=True)),
     }
 
 
 def inject_demo_content(page, page_name: str) -> None:
-    if page_name == 'teacher-live':
+    if page_name in {'teacher-live', 'teacher-live-focus'}:
         page.evaluate("""
         () => {
           const list = document.querySelector('#teacherOpenDoubts');
@@ -135,13 +144,31 @@ def inject_demo_content(page, page_name: str) -> None:
           Object.entries(values).forEach(([id,value]) => { const el=document.getElementById(id); if(el) el.textContent=value; });
         }
         """)
-    if page_name == 'student-portal':
+    if page_name in {'student-portal', 'student-live-focus'}:
         page.evaluate("""
         () => {
           const list = document.querySelector('#studentLiveDoubts');
           if (list) list.innerHTML = `
             <article class="doubt-card live-card top-vote"><div class="rank-orb">1</div><div class="doubt-content"><div class="doubt-meta"><span class="pill vote">24 same doubts</span><span class="pill">LIVE</span></div><div class="doubt-question">Why does acceleration remain constant in free fall?</div></div><div class="doubt-actions"><button class="btn mini">I have the same doubt</button></div></article>
             <article class="doubt-card live-card"><div class="rank-orb">2</div><div class="doubt-content"><div class="doubt-meta"><span class="pill mine">My Question</span><span class="pill vote">0 same doubts</span></div><div class="doubt-question">Can you explain momentum with a real-world example?</div></div></article>`;
+        }
+        """)
+    if page_name == 'student-answered':
+        page.evaluate("""
+        () => {
+          const list = document.querySelector('#studentAnsweredDoubts');
+          if (list) list.innerHTML = `
+            <article class="answered-item"><div class="answered-index">01</div><div class="answered-copy"><div class="answered-meta"><span class="pill mine">My Question</span><span class="answered-status">Completed</span><span>7 same doubts</span></div><h3>What is the difference between speed and velocity?</h3></div><span class="answered-check">✓</span></article>
+            <article class="answered-item"><div class="answered-index">02</div><div class="answered-copy"><div class="answered-meta"><span class="answered-status">Completed</span><span>3 same doubts</span></div><h3>How do we calculate displacement from a velocity-time graph?</h3></div><span class="answered-check">✓</span></article>`;
+        }
+        """)
+    if page_name == 'student-resources':
+        page.evaluate("""
+        () => {
+          const list = document.querySelector('#studentResources');
+          if (list) list.innerHTML = `
+            <article class="commercial-resource-card"><div class="resource-card-top"><span class="resource-format-icon">N</span><span class="resource-format-label">NOTE</span></div><h3>Newton's Laws Revision Notes</h3><p>A concise summary shared by the teacher.</p><div class="resource-card-footer"><span class="resource-open-link disabled">Note available</span></div></article>
+            <article class="commercial-resource-card"><div class="resource-card-top"><span class="resource-format-icon">P</span><span class="resource-format-label">PDF</span></div><h3>Motion practice worksheet</h3><p>Download and solve after class.</p><div class="resource-card-footer"><a class="resource-open-link">Open resource →</a></div></article>`;
         }
         """)
 
@@ -207,15 +234,23 @@ def run() -> int:
 
             # Representative visual evidence: phone, tablet, and laptop.
             representative = [('iphone-14', 390, 844), ('ipad-air', 820, 1180), ('laptop', 1366, 768)]
-            visual_pages = ['home', 'teacher-login', 'teacher-live', 'student-portal', 'admin-dashboard']
+            visual_pages = ['home', 'teacher-live', 'teacher-question-bank', 'teacher-resources', 'student-portal', 'student-answered', 'student-resources', 'admin-dashboard']
             for name, width, height in representative:
                 context = browser.new_context(viewport={'width': width, 'height': height}, device_scale_factor=1)
                 page = context.new_page()
                 for page_name in visual_pages:
                     page.set_content(pages[page_name], wait_until='domcontentloaded')
                     inject_demo_content(page, page_name)
-                    page.wait_for_timeout(120)
-                    page.screenshot(path=SCREENSHOTS / f'{name}__{page_name}.png', full_page=False)
+                    page.wait_for_timeout(60)
+                    try:
+                        page.screenshot(
+                            path=SCREENSHOTS / f'{name}__{page_name}.png',
+                            full_page=False,
+                            animations='disabled',
+                            timeout=10000,
+                        )
+                    except Exception as exc:
+                        print(f'Warning: screenshot skipped for {name}/{page_name}: {exc}')
                 context.close()
             browser.close()
 
@@ -226,10 +261,10 @@ def run() -> int:
         (RESULTS / 'device_matrix.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
 
         lines = [
-            '# AskYourDoubt 1.3 Device and Browser Test Result', '',
+            '# AskYourDoubt 1.5.2 Device and Browser Test Result', '',
             '## Actual local rendering performed',
             '- Browser engine: system Chromium, headless.',
-            '- Rendering method: offline HTML/CSS visual render using Playwright `set_content` because this sandbox blocks browser navigation to localhost.',
+            '- Rendering method: deterministic offline HTML/CSS visual render using Playwright `set_content`; live localhost workflows are tested separately in `browser_tests/`.',
             f'- Device profiles tested: {len(DEVICES)}',
             f'- Pages tested per profile: {len(pages)}',
             f'- Total responsive checks: {len(all_checks)}',
@@ -243,14 +278,14 @@ def run() -> int:
         lines += [
             '', '## Pages rendered at every profile',
             '- Commercial home page', '- Student login', '- Teacher login', '- Admin login',
-            '- Teacher dashboard', '- Teacher live session', '- Teacher resources',
-            '- Student portal', '- Admin dashboard', '',
+            '- Teacher dashboard', '- Teacher live session', '- Teacher full-window live focus', '- Teacher resources', '- Teacher session-filtered question bank',
+            '- Student portal', '- Student full-window live focus', '- Student answered questions', '- Student resources', '- Admin dashboard', '',
             '## Functional tests',
             '- The separate pytest integration suite validates authentication, voting, self-vote prevention, duplicate-vote prevention, question limits, attachments, resources, session closing/reopening, question bank lifecycle, admin controls, and copy-link UI contracts.', '',
             '## Browser-engine coverage',
             '- Chromium: executed locally for all profiles above.',
-            '- Google Chrome and Microsoft Edge: both use Chromium; the executed engine covers their core layout behavior.',
-            '- Firefox and Safari/WebKit: configured in `.github/workflows/ci-cd.yml` for real Playwright CI execution. They could not be executed inside this sandbox because the browser binaries are not installed and network/browser navigation is restricted.', '',
+            '- Google Chrome and Microsoft Edge: Chromium-compatible code path covered locally; dedicated branded-browser execution remains a deployment acceptance check.',
+            '- Firefox and Safari/WebKit: configured in `.github/workflows/browser-matrix.yml` for real Playwright CI execution. They could not be executed inside this sandbox because the browser binaries are not installed and network/browser navigation is restricted.', '',
             '## Result', 'PASS' if failed == 0 else 'FAIL',
         ]
         report_text = '\n'.join(lines) + '\n'

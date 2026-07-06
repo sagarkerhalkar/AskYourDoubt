@@ -5,7 +5,7 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, session, url_for
 
-from auth import student_required
+from auth import clear_role_session, student_required
 from db import get_db, transaction
 from utils import detect_category_and_keyword, save_upload, validate_mobile
 
@@ -65,7 +65,7 @@ def join(session_id: int):
                     'INSERT OR IGNORE INTO session_students(session_id, student_id) VALUES(?,?)',
                     (session_id, student_id),
                 )
-            session.clear()
+            clear_role_session('student')
             session.permanent = True
             session['student_id'] = student_id
             session['student_name'] = name
@@ -113,6 +113,38 @@ def portal(session_id: int):
         remaining=max(int(class_session['question_limit'] or 100) - count, 0),
         resources=resources,
         active_tab=active_tab,
+    )
+
+
+@bp.route('/student/session/<int:session_id>/focus')
+@student_required
+def live_focus(session_id: int):
+    if not _student_can_access(session_id):
+        return redirect(url_for('student.join', session_id=session_id))
+    class_session = _session_row(session_id)
+    if not class_session or class_session['status'] != 'ACTIVE':
+        session.pop('student_id', None)
+        session.pop('student_session_id', None)
+        return render_template(
+            'student/closed.html',
+            title='This doubt session has ended',
+            message='Your teacher has closed this session. Please wait for a new QR code or link.',
+            session_name=class_session['session_name'] if class_session else '',
+        )
+    db = get_db()
+    count = db.execute(
+        'SELECT COUNT(*) AS c FROM doubts WHERE session_id=? AND student_id=?',
+        (session_id, session['student_id']),
+    ).fetchone()['c']
+    session['student_active_tab'] = 'live'
+    return render_template(
+        'student/portal.html',
+        class_session=class_session,
+        used=count,
+        remaining=max(int(class_session['question_limit'] or 100) - count, 0),
+        resources=[],
+        active_tab='live',
+        immersive_mode=True,
     )
 
 
@@ -190,6 +222,10 @@ def submit_doubt(session_id: int):
             ),
         )
     session['student_active_tab'] = 'live'
+    if attachment_name:
+        flash(f'Doubt sent successfully with attachment: {attachment_name}', 'success')
+    else:
+        flash('Doubt sent successfully.', 'success')
     return redirect(url_for('student.portal', session_id=session_id, tab='live'))
 
 
@@ -231,7 +267,7 @@ def doubt_attachment(doubt_id: int):
 @bp.route('/student/logout')
 def logout():
     student_session_id = session.get('student_session_id')
-    session.clear()
+    clear_role_session('student')
     if student_session_id:
         return redirect(url_for('student.join', session_id=student_session_id))
     return redirect(url_for('public.student_start'))

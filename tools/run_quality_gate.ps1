@@ -1,5 +1,6 @@
 param(
-    [switch]$FullBrowserMatrix
+    [switch]$FullBrowserMatrix,
+    [switch]$DockerSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,142 +14,155 @@ function Resolve-Python {
         "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe"
     )
     foreach ($path in $known) {
-        if ($path -and (Test-Path $path)) {
-            return @{ Exe = $path; Prefix = @() }
-        }
+        if ($path -and (Test-Path $path)) { return @{ Exe = $path; Prefix = @() } }
     }
-
     $py = Get-Command py -ErrorAction SilentlyContinue
     if ($py) { return @{ Exe = $py.Source; Prefix = @('-3.14') } }
-
     $python = Get-Command python -ErrorAction SilentlyContinue
     if ($python) { return @{ Exe = $python.Source; Prefix = @() } }
-
     throw 'Python was not found. Install Python 3.14 or add Python to PATH.'
 }
 
 $resolved = Resolve-Python
 $PythonExe = $resolved.Exe
 $PythonPrefix = $resolved.Prefix
-
 function Invoke-Python {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$PythonArgs)
-    & $PythonExe @PythonPrefix @PythonArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Python command failed: $($PythonArgs -join ' ')"
-    }
+    & $PythonExe @PythonPrefix @args
+    if ($LASTEXITCODE -ne 0) { throw "Python command failed: $($args -join ' ')" }
 }
 
 $Stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
-$RunId = "${Stamp}_$PID"
-$ResultRoot = Join-Path $Root 'test_results'
-$RunRoot = Join-Path $ResultRoot "qa_runs\$RunId"
-$TempRoot = Join-Path $RunRoot 'temp'
-$DeviceRoot = Join-Path $RunRoot 'device_results'
-
-New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $DeviceRoot -Force | Out-Null
-
-# Never use the locked global pytest-of-user directory.
-$env:TEMP = $TempRoot
-$env:TMP = $TempRoot
-$env:AYD_DEVICE_RESULTS_ROOT = $DeviceRoot
-$env:PYTHONDONTWRITEBYTECODE = '1'
-
-$Log = Join-Path $RunRoot 'quality_gate.log'
-$Summary = Join-Path $ResultRoot 'LATEST_QUALITY_GATE.md'
-$CoreBaseTemp = Join-Path $RunRoot 'pytest_core'
-$ContractBaseTemp = Join-Path $RunRoot 'pytest_contract'
-$BrowserBaseTemp = Join-Path $RunRoot 'pytest_browser'
+$ResultDir = Join-Path $Root "test_results\quality_gate_$Stamp"
+$TempDir = Join-Path $ResultDir 'temp'
+$BaseTemp = Join-Path $ResultDir 'pytest'
+New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+$env:TEMP = $TempDir
+$env:TMP = $TempDir
+$Log = Join-Path $ResultDir 'quality_gate.log'
+$Summary = Join-Path $Root 'test_results\LATEST_QUALITY_GATE.md'
+$BrowserStatus = 'NOT RUN'
+$DockerStatus = 'NOT RUN'
+$env:AYD_DATABASE = Join-Path $ResultDir 'qa-runtime.db'
+$env:AYD_SECRET_KEY = 'quality-gate-only-secret'
+$env:AYD_BASE_URL = 'http://127.0.0.1:9000'
 
 Start-Transcript -Path $Log -Force | Out-Null
 try {
     Write-Host '=======================================================' -ForegroundColor Cyan
-    Write-Host 'AskYourDoubt 1.3.1 Permission-Safe QA Quality Gate' -ForegroundColor Cyan
+    Write-Host 'AskYourDoubt 1.5.2 Commercial Global QA Gate' -ForegroundColor Cyan
     Write-Host '=======================================================' -ForegroundColor Cyan
     Write-Host "Project: $Root"
     Write-Host "Python: $PythonExe $($PythonPrefix -join ' ')"
-    Write-Host "QA run: $RunRoot"
 
-    Write-Host '[1/7] Installing compatible dependencies' -ForegroundColor Yellow
-    Invoke-Python -PythonArgs @('-m','pip','install','--upgrade','pip')
-    Invoke-Python -PythonArgs @('-m','pip','install','-r','requirements-dev.txt')
+    Write-Host '[1/8] Install pinned development dependencies' -ForegroundColor Yellow
+    Invoke-Python -m pip install --upgrade pip
+    Invoke-Python -m pip install -r requirements-dev.txt
 
-    Write-Host '[2/7] Python compile check' -ForegroundColor Yellow
-    Invoke-Python -PythonArgs @('-m','compileall','-q','app.py','db.py','auth.py','utils.py','routes')
+    Write-Host '[2/8] Compile every Python module' -ForegroundColor Yellow
+    Invoke-Python -m compileall -q app.py auth.py config.py db.py utils.py routes tests browser_tests run_device_matrix.py
 
-    Write-Host '[3/7] Flask import and route registration' -ForegroundColor Yellow
-    Invoke-Python -PythonArgs @('-c',"import app; rules=list(app.app.url_map.iter_rules()); print('Registered routes:', len(rules)); assert len(rules) >= 45")
+    Write-Host '[3/8] Import Flask and verify route registration' -ForegroundColor Yellow
+    Invoke-Python -c "import app; rules=list(app.app.url_map.iter_rules()); print('Registered routes:', len(rules)); assert len(rules) >= 57"
 
-    Write-Host '[4/7] Integration and logic tests' -ForegroundColor Yellow
-    Invoke-Python -PythonArgs @(
-        '-m','pytest','-q','tests',
-        '--basetemp',$CoreBaseTemp,
-        '-p','no:cacheprovider',
-        "--junitxml=$(Join-Path $RunRoot 'core-junit.xml')"
-    )
+    Write-Host '[4/8] Run the complete functional/requirement suite' -ForegroundColor Yellow
+    Invoke-Python -m pytest -q tests --basetemp $BaseTemp -p no:cacheprovider --junitxml (Join-Path $ResultDir 'core-junit.xml')
 
-    Write-Host '[5/7] UI/animation/mobile contract checks' -ForegroundColor Yellow
-    Invoke-Python -PythonArgs @(
-        '-m','pytest','-q','tests/test_quality_gate_contracts.py',
-        '--basetemp',$ContractBaseTemp,
-        '-p','no:cacheprovider',
-        "--junitxml=$(Join-Path $RunRoot 'ui-contract-junit.xml')"
-    )
+    Write-Host '[5/8] Validate JavaScript syntax when Node.js is available' -ForegroundColor Yellow
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if ($node) {
+        & $node.Source --check static/js/app.js
+        if ($LASTEXITCODE -ne 0) { throw 'JavaScript syntax validation failed.' }
+    } else {
+        Write-Host 'Node.js not installed: JavaScript syntax check NOT RUN.' -ForegroundColor DarkYellow
+    }
 
-    Write-Host '[6/7] 12-device Chromium responsive matrix' -ForegroundColor Yellow
-    Invoke-Python -PythonArgs @('run_device_matrix.py')
+    Write-Host '[6/8] Run 12-device responsive rendering matrix' -ForegroundColor Yellow
+    Invoke-Python run_device_matrix.py
 
-    $BrowserStatus = 'NOT REQUESTED'
+    Write-Host '[7/8] Live browser matrix' -ForegroundColor Yellow
     if ($FullBrowserMatrix) {
-        Write-Host '[7/7] Chromium + Firefox + WebKit live browser matrix' -ForegroundColor Yellow
-        Invoke-Python -PythonArgs @('-m','playwright','install','chromium','firefox','webkit')
-        Invoke-Python -PythonArgs @(
-            '-m','pytest','-q','browser_tests',
-            '--browser','chromium','--browser','firefox','--browser','webkit',
-            '--basetemp',$BrowserBaseTemp,
-            '-p','no:cacheprovider',
-            "--junitxml=$(Join-Path $RunRoot 'browser-junit.xml')"
-        )
-        $BrowserStatus = 'PASSED'
-    }
-    else {
-        Write-Host '[7/7] Full browser matrix skipped in standard run' -ForegroundColor DarkYellow
+        Invoke-Python -m playwright install chromium firefox webkit
+        $BrowserBase = Join-Path $ResultDir 'browser-pytest'
+        $BrowserJunit = Join-Path $ResultDir 'browser-junit.xml'
+        Invoke-Python -m pytest -q browser_tests --browser chromium --browser firefox --browser webkit --basetemp $BrowserBase -p no:cacheprovider --junitxml $BrowserJunit
+        [xml]$BrowserXml = Get-Content $BrowserJunit
+        $Suites = $BrowserXml.SelectNodes('//testsuite')
+        $BrowserTests = 0
+        $BrowserSkipped = 0
+        foreach ($Suite in $Suites) {
+            $BrowserTests += [int]$Suite.tests
+            $BrowserSkipped += [int]$Suite.skipped
+        }
+        if ($BrowserTests -gt 0 -and $BrowserSkipped -eq $BrowserTests) {
+            $BrowserStatus = 'NOT RUN'
+            Write-Host 'All live browser tests were skipped by an environment restriction.' -ForegroundColor DarkYellow
+        } else {
+            $BrowserStatus = 'PASS'
+        }
+    } else {
+        Write-Host 'NOT RUN. Use run_browser_matrix.bat for Chromium, Firefox and WebKit.' -ForegroundColor DarkYellow
     }
 
-@"
-# AskYourDoubt Latest Quality Gate
+    Write-Host '[8/8] Docker production smoke' -ForegroundColor Yellow
+    if ($DockerSmoke) {
+        $docker = Get-Command docker -ErrorAction SilentlyContinue
+        if (-not $docker) {
+            throw 'Docker smoke was requested, but Docker is not installed or not on PATH.'
+        } else {
+            & $docker.Source build -t askyourdoubt:1.5.2-qa .
+            if ($LASTEXITCODE -ne 0) { throw 'Docker image build failed.' }
+            & $docker.Source run -d --name askyourdoubt-qa -p 9090:9000 -e AYD_SECRET_KEY=qa-only-secret askyourdoubt:1.5.2-qa
+            if ($LASTEXITCODE -ne 0) { throw 'Docker container start failed.' }
+            try {
+                $healthy = $false
+                1..30 | ForEach-Object {
+                    try {
+                        $response = Invoke-WebRequest 'http://127.0.0.1:9090/healthz' -UseBasicParsing -TimeoutSec 3
+                        if ($response.StatusCode -eq 200) { $healthy = $true; return }
+                    } catch { Start-Sleep -Seconds 2 }
+                }
+                if (-not $healthy) { & $docker.Source logs askyourdoubt-qa; throw 'Docker health smoke failed.' }
+                $DockerStatus = 'PASS'
+            } finally {
+                & $docker.Source rm -f askyourdoubt-qa | Out-Null
+            }
+        }
+    } else {
+        Write-Host 'NOT RUN. Run with -DockerSmoke to build and health-test the image.' -ForegroundColor DarkYellow
+    }
+
+    @"
+# AskYourDoubt 1.5.2 Latest Quality Gate
 
 - Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-- Result: PASSED
-- Python compile: PASSED
-- Flask import/routes: PASSED
-- Core integration tests: PASSED
-- UI/animation/mobile contracts: PASSED
-- 12-device Chromium matrix: PASSED
-- Full Chromium/Firefox/WebKit matrix: $BrowserStatus
-- Evidence: $RunRoot
+- Python compilation: PASS
+- Flask import and 57-route threshold: PASS
+- Complete functional/requirement suite: PASS
+- 12-device Chromium rendering matrix: PASS
+- Chromium/Firefox/WebKit live matrix: $BrowserStatus
+- Docker build and health smoke: $DockerStatus
+- Evidence directory: $ResultDir
 - Log: $Log
 "@ | Set-Content $Summary -Encoding UTF8
 
     Write-Host 'QUALITY GATE PASSED' -ForegroundColor Green
-    Write-Host "Evidence: $RunRoot"
+    Write-Host "Evidence: $ResultDir"
     exit 0
 }
 catch {
-@"
-# AskYourDoubt Latest Quality Gate
+    @"
+# AskYourDoubt 1.5.2 Latest Quality Gate
 
 - Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-- Result: FAILED
+- Result: FAIL
 - Error: $($_.Exception.Message)
-- Evidence: $RunRoot
+- Browser matrix: $BrowserStatus
+- Docker smoke: $DockerStatus
+- Evidence directory: $ResultDir
 - Log: $Log
 "@ | Set-Content $Summary -Encoding UTF8
-
     Write-Host 'QUALITY GATE FAILED' -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
-    Write-Host "Evidence: $RunRoot"
     exit 1
 }
 finally {

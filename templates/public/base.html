@@ -3,17 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0a1020">
+  <meta name="theme-color" content="#f7f9ff">
   <meta name="description" content="Ask Your Doubt — live classroom questions, resources, analytics, and realtime engagement.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
   <title>{% block title %}Ask Your Doubt{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static',filename='css/app.css') }}">
   <script defer src="{{ url_for('static',filename='js/app.js') }}"></script>
   {% block head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <div class="grid-noise"></div>
   {% block body %}{% endblock %}
 </body>

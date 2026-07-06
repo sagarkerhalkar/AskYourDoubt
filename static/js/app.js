@@ -68,21 +68,27 @@
         return;
       }
       const original = button.textContent;
+      button.textContent = 'Copying…';
       let copied = false;
       try {
         if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(value);
-          copied = true;
+          copied = await Promise.race([
+            navigator.clipboard.writeText(value).then(() => true).catch(() => false),
+            new Promise((resolve) => window.setTimeout(() => resolve(false), 650)),
+          ]);
         }
       } catch (_) { copied = false; }
       if (!copied) copied = fallbackCopy(value);
       if (!copied) {
         window.prompt('Copy this link:', value);
+        button.textContent = 'Copy ready ✓';
+        toast('The join link is ready to copy manually.');
+        setTimeout(() => { button.textContent = original || 'Copy Link'; }, 8000);
         return;
       }
       button.textContent = 'Copied ✓';
       toast('Join link copied.');
-      setTimeout(() => { button.textContent = original || 'Copy Link'; }, 1400);
+      setTimeout(() => { button.textContent = original || 'Copy Link'; }, 8000);
     });
   });
 
@@ -112,7 +118,13 @@
   }));
 
   qsa('[data-countdown]').forEach((element) => {
-    const end = new Date(element.dataset.countdown).getTime();
+    const raw = (element.dataset.countdown || '').trim();
+    const end = raw ? new Date(raw).getTime() : NaN;
+    if (!Number.isFinite(end)) {
+      element.textContent = 'Manual close';
+      element.setAttribute('aria-label', 'Manual close session');
+      return;
+    }
     const tick = () => {
       const diff = Math.max(0, end - Date.now());
       const hours = Math.floor(diff / 3600000);
@@ -284,6 +296,158 @@
         button.disabled = false;
         button.textContent = original;
       }
+    });
+  });
+})();
+
+/* AskYourDoubt 1.5.0 live-focus maximize/minimize controls. */
+(() => {
+  const fullscreenButtons = [...document.querySelectorAll('[data-fullscreen-target]')];
+  const exitButtons = [...document.querySelectorAll('[data-exit-fullscreen]')];
+  const minimizeButtons = [...document.querySelectorAll('[data-minimize-target]')];
+
+  const syncMinimizeButton = (button, target) => {
+    const minimized = target.classList.contains('is-minimized');
+    button.textContent = minimized ? 'Maximize' : 'Minimize';
+    button.setAttribute('aria-expanded', String(!minimized));
+    button.setAttribute('aria-label', minimized ? 'Maximize live doubt panel' : 'Minimize live doubt panel');
+  };
+
+  const syncFullscreenButtons = () => {
+    const active = Boolean(document.fullscreenElement);
+    exitButtons.forEach((button) => {
+      button.hidden = !active;
+    });
+    document.body.classList.toggle('ayd-fullscreen-active', active);
+  };
+
+
+  minimizeButtons.forEach((button) => {
+    const target = document.querySelector(button.dataset.minimizeTarget || '');
+    if (!target) return;
+    syncMinimizeButton(button, target);
+    button.addEventListener('click', () => {
+      const willMinimize = !target.classList.contains('is-minimized');
+      target.classList.toggle('is-minimized', willMinimize);
+      syncMinimizeButton(button, target);
+      if (!willMinimize) target.focus({ preventScroll: true });
+    });
+  });
+
+  fullscreenButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const target = document.querySelector(button.dataset.fullscreenTarget || '');
+      if (!target) return;
+      target.classList.remove('is-minimized');
+      minimizeButtons.forEach((item) => {
+        const itemTarget = document.querySelector(item.dataset.minimizeTarget || '');
+        if (itemTarget === target) syncMinimizeButton(item, target);
+      });
+      try {
+        if (target.requestFullscreen) {
+          await target.requestFullscreen({ navigationUI: 'hide' });
+        } else {
+          target.classList.add('simulated-fullscreen');
+          document.body.classList.add('ayd-fullscreen-active');
+          exitButtons.forEach((item) => { item.hidden = false; });
+        }
+        target.focus({ preventScroll: true });
+      } catch (_) {
+        target.classList.add('simulated-fullscreen');
+        document.body.classList.add('ayd-fullscreen-active');
+        exitButtons.forEach((item) => { item.hidden = false; });
+      }
+    });
+  });
+
+  exitButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+      } catch (_) { /* no-op */ }
+      document.querySelectorAll('.simulated-fullscreen').forEach((element) => element.classList.remove('simulated-fullscreen'));
+      document.body.classList.remove('ayd-fullscreen-active');
+      exitButtons.forEach((item) => { item.hidden = true; });
+    });
+  });
+
+  document.addEventListener('fullscreenchange', syncFullscreenButtons);
+  syncFullscreenButtons();
+
+  document.querySelectorAll('[data-print-url]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const url = button.dataset.printUrl;
+      if (!url) return;
+      const popup = window.open(url, 'ayd_qr_print', 'popup=yes,width=980,height=760,resizable=yes,scrollbars=yes');
+      if (!popup) {
+        window.location.href = url;
+        return;
+      }
+      popup.addEventListener('load', () => {
+        window.setTimeout(() => {
+          try { popup.focus(); popup.print(); } catch (_) { /* popup remains available */ }
+        }, 450);
+      }, { once: true });
+    });
+  });
+})();
+
+/* 1.5.1 commercial file selection feedback and safe submit state. */
+(() => {
+  const formatBytes = (bytes) => {
+    const value = Number(bytes || 0);
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  document.querySelectorAll('[data-file-picker]').forEach((picker) => {
+    const input = picker.querySelector('[data-file-input]');
+    const selection = picker.querySelector('[data-file-selection]');
+    const label = picker.querySelector('.file-drop');
+    const name = picker.querySelector('[data-file-name]');
+    const size = picker.querySelector('[data-file-size]');
+    const remove = picker.querySelector('[data-file-remove]');
+    if (!input || !selection || !label) return;
+
+    const render = () => {
+      const file = input.files && input.files[0];
+      if (!file) {
+        selection.hidden = true;
+        label.hidden = false;
+        picker.classList.remove('has-file');
+        return;
+      }
+      if (name) name.textContent = file.name;
+      if (size) size.textContent = `${formatBytes(file.size)} · ready to upload`;
+      selection.hidden = false;
+      label.hidden = true;
+      picker.classList.add('has-file');
+    };
+
+    input.addEventListener('change', render);
+    remove?.addEventListener('click', () => {
+      input.value = '';
+      render();
+      input.focus({ preventScroll: true });
+    });
+    render();
+  });
+
+  document.querySelectorAll('form').forEach((form) => {
+    form.addEventListener('submit', () => {
+      const button = form.querySelector('button[type="submit"][data-submit-label]');
+      if (!button || button.disabled) return;
+      button.dataset.originalLabel = button.innerHTML;
+      button.textContent = button.dataset.submitLabel;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      window.setTimeout(() => {
+        if (!document.body.contains(button)) return;
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        if (button.dataset.originalLabel) button.innerHTML = button.dataset.originalLabel;
+      }, 12000);
     });
   });
 })();

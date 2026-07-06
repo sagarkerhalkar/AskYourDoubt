@@ -6,9 +6,9 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
-from auth import admin_required
+from auth import admin_required, clear_role_session
 from db import get_db, transaction
-from utils import pagination_args, pagination_meta, rows_to_csv, verify_and_upgrade_password, validate_mobile
+from utils import duration_label, pagination_args, pagination_meta, rows_to_csv, session_end_time, verify_and_upgrade_password, validate_mobile
 
 bp = Blueprint('admin', __name__)
 
@@ -33,7 +33,7 @@ def login():
                 if upgraded:
                     with transaction() as tx:
                         tx.execute('UPDATE admins SET password=? WHERE id=?', (upgraded, row['id']))
-                session.clear()
+                clear_role_session('admin')
                 session.permanent = True
                 session['admin_id'] = row['id']
                 session['admin_name'] = row['display_name'] or row['username']
@@ -249,8 +249,11 @@ def session_status(session_id: int):
         with transaction() as db:
             db.execute("UPDATE sessions SET status='CLOSED', closed_at=CURRENT_TIMESTAMP WHERE id=?", (session_id,))
     elif action == 'reopen':
-        with transaction() as db:
-            db.execute("UPDATE sessions SET status='ACTIVE', started_at=CURRENT_TIMESTAMP, closed_at=NULL WHERE id=?", (session_id,))
+        db = get_db()
+        row = db.execute('SELECT duration, duration_seconds FROM sessions WHERE id=?', (session_id,)).fetchone()
+        seconds = row['duration_seconds'] if row and 'duration_seconds' in row.keys() and row['duration_seconds'] is not None else int(row['duration'] or 90) * 60
+        with transaction() as tx:
+            tx.execute("UPDATE sessions SET status='ACTIVE', started_at=CURRENT_TIMESTAMP, ends_at=?, closed_at=NULL WHERE id=?", (session_end_time(seconds), session_id))
     return redirect(url_for('admin.sessions_page'))
 
 
@@ -318,11 +321,11 @@ def export_csv(kind: str):
         iterable = ([r['name'],r['mobile'],r['created_at']] for r in rows)
     elif kind == 'sessions':
         rows = db.execute(
-            '''SELECT t.name,s.id,s.session_name,s.status,s.duration,s.question_limit,s.created_at
+            '''SELECT t.name,s.id,s.session_name,s.status,s.duration,s.duration_seconds,s.question_limit,s.created_at
                FROM sessions s JOIN teachers t ON t.id=s.teacher_id ORDER BY s.id DESC'''
         ).fetchall()
         headers = ['Teacher','Session ID','Session','Status','Duration','Question Limit','Created At']
-        iterable = ([r['name'],r['id'],r['session_name'],r['status'],r['duration'],r['question_limit'],r['created_at']] for r in rows)
+        iterable = ([r['name'],r['id'],r['session_name'],r['status'],duration_label(r['duration_seconds'] if 'duration_seconds' in r.keys() and r['duration_seconds'] is not None else int(r['duration'] or 90) * 60),r['question_limit'],r['created_at']] for r in rows)
     else:
         return ('Unknown export', 404)
     file = rows_to_csv(headers, iterable)
@@ -361,7 +364,7 @@ def brand_settings():
 
 @bp.route('/admin-logout')
 def logout():
-    session.clear()
+    clear_role_session('admin')
     return redirect(url_for('admin.login'))
 
 @bp.route('/admin/teacher/<int:teacher_id>/edit', methods=['GET', 'POST'])

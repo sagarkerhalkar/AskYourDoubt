@@ -1,4 +1,5 @@
 import io
+import zipfile
 
 from db import get_db
 
@@ -112,3 +113,51 @@ def test_attachment_visibility_resources_qr_and_close(app, teacher_client):
     teacher_client.post(f'/teacher/session/{session_id}/reopen')
     data = student.get(f'/api/student/session/{session_id}').get_json()
     assert data['closed'] is False
+
+
+def test_teacher_never_receives_student_identity_or_original_attachment_filename(app, teacher_client):
+    session_id = create_session(teacher_client)
+    student = app.test_client()
+    join(student, session_id, 'Sagar Kerhalkar', '9000000099')
+
+    response = student.post(
+        f'/student/session/{session_id}/submit',
+        data={
+            'question': 'Please check my private file',
+            'attachment': (io.BytesIO(b'private-pdf'), 'Sagar-Kerhalkar-9000000099-result.pdf'),
+        },
+        content_type='multipart/form-data',
+    )
+    assert response.status_code == 302
+
+    with app.app_context():
+        doubt_id = get_db().execute('SELECT id FROM doubts ORDER BY id DESC LIMIT 1').fetchone()['id']
+
+    teacher_data = teacher_client.get(f'/api/teacher/session/{session_id}').get_json()
+    sensitive_blob = str(teacher_data).lower()
+    assert 'sagar' not in sensitive_blob
+    assert 'kerhalkar' not in sensitive_blob
+    assert '9000000099' not in sensitive_blob
+    assert 'student_name' not in sensitive_blob
+    assert 'mobile' not in sensitive_blob
+    assert 'joined' not in sensitive_blob
+    assert 'student_count' not in sensitive_blob
+
+    one_file = teacher_client.get(f'/teacher/doubt/{doubt_id}/attachment')
+    assert one_file.status_code == 200
+    disposition = one_file.headers.get('Content-Disposition', '').lower()
+    assert 'student_resource_doubt_' in disposition
+    assert 'sagar' not in disposition
+    assert 'kerhalkar' not in disposition
+    assert '9000000099' not in disposition
+
+    zip_response = teacher_client.get(f'/teacher/session/{session_id}/attachments.zip')
+    assert zip_response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(zip_response.data)) as archive:
+        names = archive.namelist()
+    assert names
+    joined_names = ' '.join(names).lower()
+    assert 'student_resource_doubt_' in joined_names
+    assert 'sagar' not in joined_names
+    assert 'kerhalkar' not in joined_names
+    assert '9000000099' not in joined_names

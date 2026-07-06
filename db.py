@@ -78,6 +78,7 @@ def migrate_database() -> None:
             teacher_id INTEGER NOT NULL,
             session_name TEXT NOT NULL,
             duration INTEGER DEFAULT 90,
+            duration_seconds INTEGER DEFAULT 5400,
             status TEXT DEFAULT 'ACTIVE',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             started_at TIMESTAMP,
@@ -194,6 +195,7 @@ def migrate_database() -> None:
             'created_at': 'TIMESTAMP',
         },
         'sessions': {
+            'duration_seconds': 'INTEGER DEFAULT 5400',
             'started_at': 'TIMESTAMP',
             'ends_at': 'TIMESTAMP',
             'closed_at': 'TIMESTAMP',
@@ -245,6 +247,10 @@ def migrate_database() -> None:
     # Normalize session time fields for old rows.
     db.execute(
         "UPDATE sessions SET started_at=COALESCE(started_at, created_at) WHERE started_at IS NULL"
+    )
+    # duration is the legacy minutes field; duration_seconds is the precise 0s to 24h control.
+    db.execute(
+        "UPDATE sessions SET duration_seconds=COALESCE(duration_seconds, MIN(MAX(COALESCE(duration,90) * 60, 0), 86400))"
     )
     db.execute("UPDATE admins SET created_at=COALESCE(created_at, CURRENT_TIMESTAMP)")
     db.execute("UPDATE teachers SET created_at=COALESCE(created_at, CURRENT_TIMESTAMP)")

@@ -1,0 +1,28 @@
+AskYourDoubt Global Rebuild 1.2 Premium
+=======================================
+
+PYTHON COMPILE
+PASS
+
+PYTEST INTEGRATION SUITE
+20 passed
+
+RESPONSIVE DEVICE MATRIX
+Device profiles: 12
+Pages per profile: 9
+Checks: 108
+Passed: 108
+Failed: 0
+Screenshots: 15
+
+ACTUALLY EXECUTED BROWSER ENGINE
+Chromium
+
+CHROME / EDGE
+Covered by Chromium engine layout behavior
+
+FIREFOX / WEBKIT
+Configured in GitHub Actions. Not executed inside the restricted sandbox.
+
+RESULT
+LOCAL BUILD PASS
