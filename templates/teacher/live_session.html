@@ -1,43 +1,32 @@
 {% extends 'teacher/base.html' %}
-{% block title %}{{ class_session.session_name }} — Live Session{% endblock %}
+{% block title %}{{ class_session.session_name }} — Live Doubts{% endblock %}
 {% block content %}
-<div id="teacherLive" class="live-experience teacher-live teacher-live-v13" data-session-id="{{ class_session.id }}">
-  <section class="teacher-live-hero">
-    <div class="teacher-live-identity">
-      <div class="teacher-live-mic" aria-hidden="true">
-        <span class="mic-wave wave-one"></span><span class="mic-wave wave-two"></span><span class="mic-wave wave-three"></span>
-        <span class="mic-icon">?</span>
-      </div>
-      <div>
+<div id="teacherLive" class="live-experience teacher-live teacher-live-v14 {{ 'is-immersive-route' if immersive_mode else '' }}" data-session-id="{{ class_session.id }}">
+  {% if not immersive_mode %}
+  <section class="teacher-command-hero-v141">
+    <div class="teacher-command-copy-v141">
+      <div class="teacher-command-topline-v141">
         <span class="teacher-live-status"><span class="pulse-dot"></span>{{ 'LIVE SESSION' if class_session.status=='ACTIVE' else 'CLOSED SESSION' }}</span>
-        <h1>{{ class_session.session_name }}</h1>
-        <p>Session #{{ class_session.id }} · Created {{ class_session.created_at }}</p>
-        <div class="teacher-session-time">
-          <span><b data-countdown="{{ class_session.ends_at }}">00:00:00</b><small>Remaining</small></span>
-          <span><b>1 sec</b><small>Silent refresh</small></span>
-          <span><b>Top votes</b><small>Priority order</small></span>
-        </div>
+        <span class="teacher-command-private-v141">🔒 Anonymous student view</span>
+      </div>
+      <h1>{{ class_session.session_name }}</h1>
+      <p>One focused workspace for live questions, priority voting, QR access, resources, and classroom progress.</p>
+      <div class="teacher-command-meta-v141">
+        <span><small>Remaining</small><b data-countdown="{{ class_session.ends_at or '' }}">00:00:00</b></span>
+        <span><small>Live focus</small><b>Top 100</b></span>
+        <span><small>Duration</small><b>{{ duration_label(class_session.duration_seconds if 'duration_seconds' in class_session.keys() and class_session.duration_seconds is not none else class_session.duration * 60) }}</b></span>
       </div>
     </div>
-
-    <div class="teacher-3d-stage" aria-hidden="true">
-      <div class="teacher-orbit orbit-a"></div>
-      <div class="teacher-orbit orbit-b"></div>
-      <div class="teacher-avatar-3d">
-        <div class="teacher-head"></div>
-        <div class="teacher-body"></div>
-        <div class="teacher-tablet">?</div>
-        <div class="teacher-hand">☝</div>
-      </div>
-      <span class="float-symbol symbol-one">?</span>
-      <span class="float-symbol symbol-two">✓</span>
-      <span class="float-symbol symbol-three">↗</span>
+    <div class="teacher-command-visual-v141 commercial-hero-visual" aria-hidden="true">
+      <span class="commercial-hero-glow"></span>
+      <img src="{{ url_for('static',filename='img/teacher-command-3d.svg') }}" alt="" loading="eager">
+      <span class="scene-status scene-status-live"><i></i> Realtime</span>
+      <span class="scene-status scene-status-private">Anonymous queue</span>
     </div>
-
-    <div class="teacher-hero-actions">
-      <a class="btn secondary" href="{{ url_for('teacher.dashboard') }}">Dashboard</a>
-      <a class="btn" href="{{ url_for('teacher.resources',session_id=class_session.id) }}">Share Resources</a>
-      <a class="btn secondary" href="{{ url_for('teacher.full_qr',session_id=class_session.id) }}">Present QR</a>
+    <div class="teacher-command-actions-v141">
+      <button class="btn" type="button" data-fullscreen-target="#teacherFocusStage" aria-label="Focus Full Screen">⛶ Full-Screen Live</button>
+      <a class="btn secondary" href="{{ url_for('teacher.live_focus',session_id=class_session.id) }}" target="_blank" rel="noopener">Open New Window ↗</a>
+      <a class="btn secondary" href="{{ url_for('teacher.resources',session_id=class_session.id) }}">Share Resources</a>
       {% if class_session.status=='ACTIVE' %}
       <form method="post" action="{{ url_for('teacher.close_session',session_id=class_session.id) }}"><button class="btn danger">Close Session</button></form>
       {% else %}
@@ -45,83 +34,162 @@
       {% endif %}
     </div>
   </section>
+  {% endif %}
 
-  <section class="teacher-live-grid">
-    <main class="teacher-live-main">
-      <div class="teacher-live-stats">
-        <article class="teacher-metric metric-blue"><span class="metric-icon">💬</span><div><small>Total Doubts</small><strong id="tTotal">0</strong><em>All questions</em></div></article>
-        <article class="teacher-metric metric-violet"><span class="metric-icon">🎯</span><div><small>Open Focus</small><strong id="tOpen">0</strong><em>Needs attention</em></div></article>
-        <article class="teacher-metric metric-green"><span class="metric-icon">✓</span><div><small>Completed</small><strong id="tCompleted">0</strong><em>This session</em></div></article>
-        <article class="teacher-metric metric-amber"><span class="metric-icon">★</span><div><small>Total Votes</small><strong id="tVotes">0</strong><em>Same doubts</em></div></article>
+  <section id="teacherFocusStage" class="teacher-focus-stage" tabindex="-1">
+    <header class="teacher-focus-toolbar">
+      <div class="teacher-focus-toolbar-title">
+        <span class="teacher-live-status"><span class="pulse-dot"></span>{{ class_session.status }}</span>
+        <div><b>{{ class_session.session_name }}</b><small>Live Doubt Focus · Session #{{ class_session.id }}</small></div>
       </div>
-
-      <section class="teacher-focus-card">
-        <header class="teacher-focus-head">
-          <div>
-            <span class="section-kicker">Live priority queue</span>
-            <h2>Open Doubts Focus</h2>
-            <p>Highest-voted doubts stay at the top. Student identity, category, and keyword remain hidden.</p>
-          </div>
-          <div class="teacher-focus-tools">
-            <span class="live-badge"><span class="pulse-dot"></span> Realtime</span>
-            <label class="teacher-size-control">Top
-              <select id="teacherPerPage" aria-label="Doubts per page">
-                <option value="100">100</option><option value="250">250</option><option value="500">500</option>
-              </select>
-            </label>
-          </div>
-        </header>
-
-        <div id="teacherOpenDoubts" class="teacher-doubt-stream">
-          <div class="empty teacher-empty"><span class="loading-sphere"></span>Connecting to live doubts…</div>
-        </div>
-
-        <footer class="teacher-live-pager" id="teacherLivePagination">
-          <button class="page-nav" id="teacherPrevPage" type="button">← Previous</button>
-          <span id="teacherPageInfo">Page 1 / 1</span>
-          <button class="page-nav" id="teacherNextPage" type="button">Next →</button>
-        </footer>
-      </section>
-
-      <div class="teacher-history-toggle">
-        <button class="history-pill completed" data-collapse="#completedDoubts" aria-expanded="false">✓ Recently Completed</button>
-        <button class="history-pill skipped" data-collapse="#skippedDoubts" aria-expanded="false">↪ Recently Skipped</button>
+      <div class="teacher-focus-toolbar-actions">
+        <span class="focus-timer" data-countdown="{{ class_session.ends_at or '' }}">00:00:00</span>
+        <button class="focus-tool-button live-size-toggle" type="button" data-minimize-target="#teacherFocusStage" aria-expanded="true">Minimize</button>
+        {% if immersive_mode %}
+        <a class="focus-tool-button" href="{{ url_for('teacher.live_session',session_id=class_session.id) }}">Return to Original Size</a>
+        {% else %}
+        <button class="focus-tool-button" type="button" data-exit-fullscreen hidden>Return to Original Size</button>
+        {% endif %}
       </div>
-      <section class="teacher-history-panel collapse" id="completedDoubts"><div class="history-title"><h2>Recently Completed</h2><span>Reopen any question when needed.</span></div><div id="teacherCompletedDoubts" class="doubt-list"></div></section>
-      <section class="teacher-history-panel collapse" id="skippedDoubts"><div class="history-title"><h2>Skipped Doubts</h2><span>Skipped questions stay hidden from students.</span></div><div id="teacherSkippedDoubts" class="doubt-list"></div></section>
-    </main>
+    </header>
 
-    <aside class="teacher-live-side">
-      <section class="teacher-control-card">
-        <header><div><span class="section-kicker">Session controls</span><h2>Doubt Control Center</h2></div><span class="control-3d-icon">⚙</span></header>
-        <form method="post" action="{{ url_for('teacher.session_settings',session_id=class_session.id) }}">
-          <div class="control-block">
-            <div class="control-label"><label for="questionLimit">Student doubt limit</label><span>{{ class_session.question_limit }}</span></div>
-            <input id="questionLimit" class="input" type="number" name="question_limit" min="1" max="10000000" value="{{ class_session.question_limit }}">
-            <div class="limit-scale"><i>1</i><i>100</i><i>1 lakh</i><i>1 crore</i></div>
+    <div class="teacher-live-stats teacher-live-stats-five">
+      <article class="teacher-metric metric-blue"><span class="metric-icon">▤</span><div><small>Total Questions</small><strong id="tTotal">0</strong><em>Open + completed</em></div></article>
+      <article class="teacher-metric metric-violet"><span class="metric-icon">●</span><div><small>Open</small><strong id="tOpen">0</strong><em>Needs attention</em></div></article>
+      <article class="teacher-metric metric-green"><span class="metric-icon">✓</span><div><small>Completed</small><strong id="tCompleted">0</strong><em>This session</em></div></article>
+      <article class="teacher-metric metric-sky"><span class="metric-icon">↷</span><div><small>Skipped</small><strong id="tSkipped">0</strong><em>Hidden from students</em></div></article>
+      <article class="teacher-metric metric-amber"><span class="metric-icon">⌃</span><div><small>Total Votes</small><strong id="tVotes">0</strong><em>Same doubts</em></div></article>
+    </div>
+
+    <section class="session-download-strip" aria-label="Current session downloads">
+      <div><span class="section-kicker">Current session export</span><b>Download exactly what you need</b><small>Total contains Open + Completed. Skipped is exported separately.</small></div>
+      <div class="session-download-actions">
+        <a class="download-chip" href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id,filter='ALL') }}">⇩ Total</a>
+        <a class="download-chip" href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id,filter='OPEN') }}">⇩ Open</a>
+        <a class="download-chip" href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id,filter='COMPLETED') }}">⇩ Completed</a>
+        <a class="download-chip" href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id,filter='SKIPPED') }}">⇩ Skipped</a>
+      </div>
+    </section>
+
+    <section class="teacher-live-grid">
+      <main class="teacher-live-main">
+        <section class="teacher-focus-card">
+          <header class="teacher-focus-head">
+            <div>
+              <span class="section-kicker">Live priority queue</span>
+              <h2>Open Doubts</h2>
+              <p>Highest-voted doubts stay at the top. Student identity, category, and keyword remain hidden.</p>
+            </div>
+            <div class="teacher-focus-tools">
+              <span class="live-badge"><span class="pulse-dot"></span> Realtime</span>
+              <label class="teacher-size-control">Top
+                <select id="teacherPerPage" aria-label="Doubts per page">
+                  <option value="100">100</option><option value="250">250</option><option value="500">500</option>
+                </select>
+              </label>
+              {% if not immersive_mode %}<button class="focus-icon-button" type="button" data-fullscreen-target="#teacherFocusStage" aria-label="Open full screen">⛶</button>{% endif %}
+            </div>
+          </header>
+
+          <div id="teacherOpenDoubts" class="teacher-doubt-stream" aria-live="polite" aria-atomic="false">
+            <div class="empty teacher-empty"><span class="loading-sphere"></span>Connecting to live doubts…</div>
           </div>
-          <label class="teacher-switch"><input type="checkbox" name="allow_student_attachment_download" {{ 'checked' if class_session.allow_student_attachment_download else '' }}><span></span><b>Allow student attachment download</b></label>
-          <button class="btn teacher-save-control" type="submit">Save Controls</button>
-        </form>
-        <div class="teacher-control-links">
-          <a href="{{ url_for('teacher.resources',session_id=class_session.id) }}"><span>📁</span><b>Upload Resources</b><small>PDF, images, documents, video links</small></a>
-          <a href="{{ url_for('teacher.attachment_zip',session_id=class_session.id) }}"><span>☁</span><b>Download ZIP</b><small>All student attachments</small></a>
-          <a href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id) }}"><span>⇩</span><b>Export Questions</b><small>Current session CSV</small></a>
-        </div>
-      </section>
 
-      <section class="teacher-qr-card">
-        <div class="qr-card-head"><div><span class="section-kicker">Student access</span><h2>Join with QR Code</h2></div><span class="qr-float-orb"></span></div>
-        <div class="teacher-qr-frame"><img id="teacherQrImage" src="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" alt="Student QR code"></div>
-        <input class="input" id="joinLink" readonly value="{{ join_url }}" aria-label="Student join link">
-        <div class="teacher-qr-actions">
-          <button class="btn" type="button" data-copy-target="#joinLink">Copy Link</button>
-          <a class="btn secondary" href="{{ url_for('teacher.download_qr',session_id=class_session.id) }}">Download QR</a>
-          <button class="btn secondary" type="button" data-share-qr data-qr-url="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" data-join-url="{{ join_url }}" data-file-name="{{ class_session.session_name|replace(' ', '_') }}_QR.png">Share QR</button>
-          <a class="btn secondary" href="{{ url_for('teacher.full_qr',session_id=class_session.id) }}">Full Screen</a>
+          <footer class="teacher-live-pager" id="teacherLivePagination">
+            <button class="page-nav" id="teacherPrevPage" type="button">← Previous</button>
+            <span id="teacherPageInfo">Page 1 / 1</span>
+            <button class="page-nav" id="teacherNextPage" type="button">Next →</button>
+          </footer>
+        </section>
+
+        <div class="teacher-history-toggle">
+          <button class="history-pill completed" data-collapse="#completedDoubts" aria-expanded="false">✓ Recently Completed</button>
+          <button class="history-pill skipped" data-collapse="#skippedDoubts" aria-expanded="false">↪ Recently Skipped</button>
         </div>
-      </section>
-    </aside>
+        <section class="teacher-history-panel collapse" id="completedDoubts">
+          <div class="history-title"><h2>Completed Questions</h2><span>Reopen any question when needed.</span></div>
+          <div id="teacherCompletedDoubts" class="doubt-list"></div>
+          <footer class="history-pagination">
+            <label>Show <select id="completedPerPage"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select></label>
+            <div><button class="page-nav" id="completedPrevPage" type="button">← Previous</button><span id="completedPageInfo">Page 1 / 1</span><button class="page-nav" id="completedNextPage" type="button">Next →</button></div>
+          </footer>
+        </section>
+        <section class="teacher-history-panel collapse" id="skippedDoubts">
+          <div class="history-title"><h2>Skipped Doubts</h2><span>Skipped questions stay hidden from students.</span></div>
+          <div id="teacherSkippedDoubts" class="doubt-list"></div>
+          <footer class="history-pagination">
+            <label>Show <select id="skippedPerPage"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select></label>
+            <div><button class="page-nav" id="skippedPrevPage" type="button">← Previous</button><span id="skippedPageInfo">Page 1 / 1</span><button class="page-nav" id="skippedNextPage" type="button">Next →</button></div>
+          </footer>
+        </section>
+      </main>
+
+      <aside class="teacher-live-side">
+        <section class="teacher-qr-card teacher-focus-qr" id="teacherQrStage">
+          <div class="qr-card-head"><div><span class="section-kicker">Student access</span><h2>Join this session</h2></div><div class="qr-head-actions"><button class="focus-icon-button" type="button" data-fullscreen-target="#teacherQrStage" aria-label="Maximize QR and link">⛶</button><span class="qr-float-orb"></span></div></div>
+          <div class="teacher-qr-frame"><img id="teacherQrImage" src="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" alt="Student QR code"></div>
+          <label class="qr-link-label" for="joinLink">Student join link</label>
+          <input class="input" id="joinLink" readonly value="{{ join_url }}" aria-label="Student join link">
+          <div class="teacher-qr-actions">
+            <button class="btn" type="button" data-copy-target="#joinLink">Copy Link</button>
+            <a class="btn secondary" href="{{ url_for('teacher.download_qr',session_id=class_session.id) }}">Download QR</a>
+            <button class="btn secondary" type="button" data-share-qr data-qr-url="{{ url_for('static',filename='qr/session_' ~ class_session.id ~ '.png') }}" data-join-url="{{ join_url }}" data-file-name="{{ class_session.session_name|replace(' ', '_') }}_QR.png">Share QR</button>
+            <a class="btn secondary" href="{{ url_for('teacher.full_qr',session_id=class_session.id) }}">Full Page</a>
+            <button class="btn secondary" type="button" data-print-url="{{ url_for('teacher.full_qr',session_id=class_session.id) }}">Print QR</button>
+            <button class="btn secondary" type="button" data-exit-fullscreen hidden>Original Size</button>
+          </div>
+        </section>
+
+        <section class="teacher-control-card teacher-control-card-pro">
+          <header class="control-pro-head">
+            <div>
+              <span class="section-kicker">Session controls</span>
+              <h2>Doubt Control Center</h2>
+              <p>Simple controls for this live class. Duration uses hours format: <b>.30 = 30 min</b>, <b>1.30 = 1 hr 30 min</b>.</p>
+            </div>
+            <span class="control-3d-icon" aria-hidden="true">⚙</span>
+          </header>
+          <form class="control-pro-form" method="post" action="{{ url_for('teacher.session_settings',session_id=class_session.id) }}">
+            {% set current_duration_seconds = class_session.duration_seconds if 'duration_seconds' in class_session.keys() and class_session.duration_seconds is not none else (class_session.duration * 60) %}
+            <div class="control-pro-grid">
+              <div class="control-pro-field control-pro-field-wide">
+                <div class="control-label"><label for="durationHours">Session duration</label><span>0–24 hrs</span></div>
+                <div class="duration-input-row">
+                  <input id="durationHours" class="input duration-hours-input" type="text" name="duration_hours" value="{{ duration_hours_input(current_duration_seconds) }}" inputmode="decimal" autocomplete="off" pattern="^(0|[0-9]|1[0-9]|2[0-4])?(\.[0-5][0-9])?$|^24$" placeholder="Example: .30 or 1.30" aria-describedby="durationHelp">
+                  <b>hrs</b>
+                </div>
+                <small id="durationHelp" class="control-help">Use <b>0</b> manual, <b>.30</b> for 30 minutes, <b>1</b> for 1 hour, <b>1.30</b> for 90 minutes, max <b>24</b>.</small>
+                <div class="duration-chip-row" data-duration-presets>
+                  <button type="button" data-duration-preset="0">0 manual</button>
+                  <button type="button" data-duration-preset=".30">.30 hr</button>
+                  <button type="button" data-duration-preset="1">1 hr</button>
+                  <button type="button" data-duration-preset="1.30">1.30 hrs</button>
+                  <button type="button" data-duration-preset="12">12 hrs</button>
+                  <button type="button" data-duration-preset="24">24 hrs</button>
+                </div>
+              </div>
+              <div class="control-pro-field">
+                <div class="control-label"><label for="questionLimit">Student doubt limit</label><span>Max 1 crore</span></div>
+                <input id="questionLimit" class="input" type="number" name="question_limit" min="1" max="10000000" value="{{ class_session.question_limit }}" inputmode="numeric">
+                <div class="duration-chip-row compact" data-limit-presets>
+                  <button type="button" data-limit-preset="1">1</button>
+                  <button type="button" data-limit-preset="100">100</button>
+                  <button type="button" data-limit-preset="100000">1 lakh</button>
+                  <button type="button" data-limit-preset="10000000">1 crore</button>
+                </div>
+              </div>
+            </div>
+            <label class="teacher-switch pro-switch"><input type="checkbox" name="allow_student_attachment_download" {{ 'checked' if class_session.allow_student_attachment_download else '' }}><span></span><b>Allow student attachment download</b></label>
+            <button class="btn teacher-save-control" type="submit">Save Controls</button>
+          </form>
+          <div class="teacher-control-links teacher-control-links-pro">
+            <a href="{{ url_for('teacher.resources',session_id=class_session.id) }}"><span>📁</span><b>Upload Resources</b><small>PDF, images, documents, and video links</small></a>
+            <a href="{{ url_for('teacher.attachment_zip',session_id=class_session.id) }}"><span>☁</span><b>Download ZIP</b><small>All student attachments</small></a>
+            <a href="{{ url_for('teacher.session_questions_csv',session_id=class_session.id) }}"><span>⇩</span><b>Export Questions</b><small>Current session CSV</small></a>
+          </div>
+        </section>
+      </aside>
+    </section>
   </section>
 </div>
 
@@ -129,8 +197,14 @@
 (() => {
   const sid = {{ class_session.id }};
   let last = '';
+  let loading = false;
+  const POLL_INTERVAL_MS = 1000;
   let page = Number(localStorage.getItem(`ayd-teacher-live-page-${sid}`) || 1);
   let perPage = Number(localStorage.getItem('ayd-teacher-live-size') || 100);
+  let completedPage = Number(localStorage.getItem(`ayd-teacher-completed-page-${sid}`) || 1);
+  let completedPerPage = Number(localStorage.getItem('ayd-teacher-completed-size') || 10);
+  let skippedPage = Number(localStorage.getItem(`ayd-teacher-skipped-page-${sid}`) || 1);
+  let skippedPerPage = Number(localStorage.getItem('ayd-teacher-skipped-size') || 10);
   let knownIds = new Set();
   const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
@@ -151,7 +225,7 @@
   async function action(id, actionName, button) {
     if (button) button.disabled = true;
     try {
-      const response = await fetch(`/api/teacher/doubt/${id}/${actionName}`, { method: 'POST' });
+      const response = await fetch(`/api/teacher/doubt/${id}/${actionName}`, { method: 'POST', credentials: 'same-origin' });
       if (!response.ok) throw new Error('Action failed');
       last = '';
       await load();
@@ -177,26 +251,60 @@
     document.querySelector('#teacherPerPage').value = String(pager.per_page);
   }
 
+  function renderHistoryPager(kind, pager) {
+    const isCompleted = kind === 'completed';
+    if (isCompleted) {
+      completedPage = pager.page;
+      localStorage.setItem(`ayd-teacher-completed-page-${sid}`, String(completedPage));
+    } else {
+      skippedPage = pager.page;
+      localStorage.setItem(`ayd-teacher-skipped-page-${sid}`, String(skippedPage));
+    }
+    document.querySelector(`#${kind}PageInfo`).textContent = `Page ${pager.page} / ${pager.pages} · ${pager.total} ${kind}`;
+    document.querySelector(`#${kind}PrevPage`).disabled = !pager.has_prev;
+    document.querySelector(`#${kind}NextPage`).disabled = !pager.has_next;
+    document.querySelector(`#${kind}PerPage`).value = String(pager.per_page);
+  }
+
   async function load() {
+    if (loading) return;
+    loading = true;
     try {
-      const response = await fetch(`/api/teacher/session/${sid}?page=${page}&per_page=${perPage}`, { cache: 'no-store' });
+      const response = await fetch(`/api/teacher/session/${sid}?page=${page}&per_page=${perPage}&completed_page=${completedPage}&completed_per_page=${completedPerPage}&skipped_page=${skippedPage}&skipped_per_page=${skippedPerPage}`, { cache: 'no-store', credentials: 'same-origin' });
       if (!response.ok) throw new Error('Live data unavailable');
       const data = await response.json();
-      const key = JSON.stringify(data);
-      if (key === last) return;
-      last = key;
       document.querySelector('#tTotal').textContent = data.stats.total;
       document.querySelector('#tOpen').textContent = data.stats.open;
       document.querySelector('#tCompleted').textContent = data.stats.completed;
+      document.querySelector('#tSkipped').textContent = data.stats.skipped;
       document.querySelector('#tVotes').textContent = data.stats.votes;
+      const key = JSON.stringify({open:data.open, completed:data.completed, skipped:data.skipped, pagination:data.pagination, completedPagination:data.completed_pagination, skippedPagination:data.skipped_pagination});
+      if (key === last) return;
+      last = key;
       document.querySelector('#teacherOpenDoubts').innerHTML = data.open.length ? data.open.map((item, index) => card(item, index, 'open')).join('') : '<div class="empty teacher-empty">No open doubts. The live queue is ready.</div>';
       document.querySelector('#teacherCompletedDoubts').innerHTML = data.completed.length ? data.completed.map((item, index) => card(item, index, 'completed')).join('') : '<div class="empty">No completed doubts.</div>';
       document.querySelector('#teacherSkippedDoubts').innerHTML = data.skipped.length ? data.skipped.map((item, index) => card(item, index, 'skipped')).join('') : '<div class="empty">No skipped doubts.</div>';
       data.open.forEach((item) => knownIds.add(item.id));
       renderPager(data.pagination);
+      renderHistoryPager('completed', data.completed_pagination);
+      renderHistoryPager('skipped', data.skipped_pagination);
       bind();
-    } catch (error) { console.error(error); }
+    } catch (error) { console.debug('Silent live update retry', error); }
+    finally { loading = false; }
   }
+
+  document.querySelectorAll('[data-duration-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.querySelector('#durationHours');
+      if (input) input.value = button.dataset.durationPreset;
+    });
+  });
+  document.querySelectorAll('[data-limit-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.querySelector('#questionLimit');
+      if (input) input.value = button.dataset.limitPreset;
+    });
+  });
 
   document.querySelector('#teacherPerPage').addEventListener('change', (event) => {
     perPage = Number(event.target.value); page = 1; last = '';
@@ -204,8 +312,15 @@
   });
   document.querySelector('#teacherPrevPage').addEventListener('click', () => { if (page > 1) { page -= 1; last=''; load(); } });
   document.querySelector('#teacherNextPage').addEventListener('click', () => { page += 1; last=''; load(); });
+  document.querySelector('#completedPerPage').addEventListener('change', (event) => { completedPerPage=Number(event.target.value); completedPage=1; last=''; localStorage.setItem('ayd-teacher-completed-size', String(completedPerPage)); load(); });
+  document.querySelector('#completedPrevPage').addEventListener('click', () => { if(completedPage>1){completedPage-=1;last='';load();} });
+  document.querySelector('#completedNextPage').addEventListener('click', () => { completedPage+=1;last='';load(); });
+  document.querySelector('#skippedPerPage').addEventListener('change', (event) => { skippedPerPage=Number(event.target.value); skippedPage=1; last=''; localStorage.setItem('ayd-teacher-skipped-size', String(skippedPerPage)); load(); });
+  document.querySelector('#skippedPrevPage').addEventListener('click', () => { if(skippedPage>1){skippedPage-=1;last='';load();} });
+  document.querySelector('#skippedNextPage').addEventListener('click', () => { skippedPage+=1;last='';load(); });
   load();
-  setInterval(load, 1000);
+  window.setInterval(load, POLL_INTERVAL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { last=''; load(); } });
 })();
 </script>
 {% endblock %}

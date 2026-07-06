@@ -7,17 +7,17 @@ Ask Your Doubt must be a commercial, global, international-level live classroom 
 ## Design requirements
 
 - Product name: Ask Your Doubt.
-- Theme: black, green, white, orange, yellow, with cyan accents.
-- Font sizes must remain balanced and readable.
+- Theme: professional navy, blue, teal, white, and neutral surfaces with limited cyan, violet, amber, and success/error accents.
+- Font sizes must remain compact, balanced, readable, and consistent across every role and viewport.
 - Commercial home page suitable for product sales and demonstrations.
 - Professional photographic student/teacher/admin visuals, not cartoon-only pages.
-- 3D-style depth, subtle animated motion, animated analytics, hover and touch feedback.
+- Restrained 3D depth, subtle animated motion, animated analytics, hover and touch feedback; never a gaming or cartoon-heavy appearance.
 - Mobile-first responsive layouts for Android and iOS.
 - Tablet, laptop, and desktop responsive layouts.
 - Chrome/Chromium, Firefox, and WebKit/Safari CI browser matrix.
 - Accessibility reduced-motion support.
 - High-resolution replaceable logo.
-- No visible realtime page-refresh flicker.
+- No visible realtime page-refresh flicker; teacher and student live queues update silently every second and preserve active typing.
 
 ## Student requirements
 
@@ -29,6 +29,7 @@ Ask Your Doubt must be a commercial, global, international-level live classroom 
 - Question text compulsory.
 - WhatsApp-style writing experience with emojis.
 - Optional file upload, maximum 10 MB.
+- After file selection, show filename, file size, upload-ready state, and a Remove action before submission.
 - Allowed: PDF, Word, TXT, and images.
 - Student video upload prohibited.
 - “My Question” marker.
@@ -38,11 +39,11 @@ Ask Your Doubt must be a commercial, global, international-level live classroom 
 - Open doubts update silently every second.
 - Highest-voted doubts appear first.
 - Skipped doubts are never shown to students.
-- Completed doubts move to a collapsible Answered section.
+- Completed doubts move to a collapsible Answered section and the full question text remains visible.
 - Other student attachments remain hidden unless teacher enables downloads.
 - Download button appears only when allowed and a file exists.
 - Teacher resources are directly available without extra student permission.
-- Session name displayed at medium scale.
+- Session name and every page heading use the compact international typography scale.
 - Countdown displayed.
 - After question submission, automatically go to Live Doubts.
 - Selected tab stays selected after refresh.
@@ -55,7 +56,7 @@ Ask Your Doubt must be a commercial, global, international-level live classroom 
 - Per-student question limit: 1 to 10,000,000.
 - Session QR and link remain available throughout the session.
 - Full-screen QR mode, copy link, download QR, print QR, return to session.
-- Teacher live page updates silently every second.
+- Teacher live page updates silently every second and supports minimize, maximize, full-screen, new-window, and return controls.
 - Teacher cannot see student name, mobile, or student count in the live session.
 - Highest-voted open doubt appears first.
 - Live doubt cards do not show category or keyword.
@@ -72,6 +73,8 @@ Ask Your Doubt must be a commercial, global, international-level live classroom 
 - Automatic question bank for open and completed doubts.
 - Skipped doubts excluded from question bank.
 - Question bank stores session, date, category, keyword/topic, votes, status.
+- Selecting a teacher session filters the visible Question Bank list, not only the export.
+- All/Open/Completed filters, pagination and exports preserve the selected session.
 - Download current session, all sessions, all question-bank items, selected session question bank.
 - Animated category, keyword/topic, and session analytics.
 - Teacher changes own password.

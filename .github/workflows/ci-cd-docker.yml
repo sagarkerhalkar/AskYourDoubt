@@ -1,0 +1,193 @@
+name: AskYourDoubt CI CD Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  core-tests:
+    name: Core tests - Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Compile Python
+        run: python -m compileall -q app.py db.py auth.py utils.py routes
+
+      - name: Import Flask and verify routes
+        run: |
+          python -c "import app; rules=list(app.app.url_map.iter_rules()); print('Registered routes:',len(rules)); assert len(rules)>=45"
+
+      - name: Run integration and UI tests
+        run: |
+          mkdir -p test_results/pytest_core
+          python -m pytest -q tests \
+            --basetemp test_results/pytest_core \
+            -p no:cacheprovider \
+            --junitxml test_results/core-junit-${{ matrix.python-version }}.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-test-evidence-python-${{ matrix.python-version }}
+          path: test_results/
+
+  browser-tests:
+    name: Browser - ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    needs: core-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Install browser
+        run: python -m playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run browser matrix
+        run: |
+          mkdir -p test_results/browser-${{ matrix.browser }}
+          python -m pytest -q browser_tests \
+            --browser ${{ matrix.browser }} \
+            --basetemp test_results/browser-${{ matrix.browser }}/tmp \
+            -p no:cacheprovider \
+            --junitxml test_results/browser-${{ matrix.browser }}.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence-${{ matrix.browser }}
+          path: test_results/
+
+  docker-smoke:
+    name: Docker build and smoke test
+    runs-on: ubuntu-latest
+    needs: core-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build local image
+        run: docker build --build-arg APP_VERSION=ci -t askyourdoubt:ci .
+
+      - name: Run container
+        run: |
+          docker run -d \
+            --name askyourdoubt-ci \
+            -p 9000:9000 \
+            -e AYD_SECRET_KEY=ci-only-secret-change-me \
+            -e AYD_DATABASE=/app/data/database.db \
+            -e AYD_BASE_URL=http://127.0.0.1:9000 \
+            askyourdoubt:ci
+
+      - name: Wait for healthy HTTP response
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:9000/ > /dev/null; then
+              echo "Container is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs askyourdoubt-ci
+          exit 1
+
+      - name: Capture container evidence
+        if: always()
+        run: |
+          mkdir -p test_results
+          docker logs askyourdoubt-ci > test_results/docker.log 2>&1 || true
+          docker inspect askyourdoubt-ci > test_results/docker-inspect.json 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docker-smoke-evidence
+          path: test_results/
+
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f askyourdoubt-ci || true
+
+  publish-image:
+    name: Publish GHCR image
+    runs-on: ubuntu-latest
+    needs: [core-tests, browser-tests, docker-smoke]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calculate lowercase image name
+        id: image
+        shell: bash
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "name=ghcr.io/${OWNER}/askyourdoubt" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ github.ref_name }}

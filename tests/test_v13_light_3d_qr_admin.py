@@ -62,16 +62,22 @@ def test_admin_dashboard_is_compact_and_activity_is_paginated(app, admin_client)
     assert '10' in activity_html and '20' in activity_html and '30' in activity_html
 
 
-def test_v13_teacher_design_contracts_exist():
+def test_v14_teacher_design_and_immersive_contracts_exist():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
     template = (root / 'templates/teacher/live_session.html').read_text(encoding='utf-8')
+    dashboard = (root / 'templates/teacher/dashboard.html').read_text(encoding='utf-8')
+    student = (root / 'templates/student/portal.html').read_text(encoding='utf-8')
     css = (root / 'static/css/app.css').read_text(encoding='utf-8')
     js = (root / 'static/js/app.js').read_text(encoding='utf-8')
 
-    for token in ('teacher-3d-stage', 'Doubt Control Center', 'Open Doubts Focus', 'data-share-qr', 'Download QR'):
+    for token in ('teacherFocusStage', 'Doubt Control Center', 'Open Doubts', 'data-share-qr', 'Download QR', 'data-print-url', 'Open New Window'):
         assert token in template
-    for token in ('teacherAvatarFloat', 'teacherOrbit', 'teacher-doubt-card', 'teacher-qr-frame', 'prefers-reduced-motion'):
+    for token in ('teacher-dashboard-v14', 'Live Focus', 'teacher-session-card'):
+        assert token in dashboard
+    for token in ('studentFocusStage', 'New Window', 'Return to Original Size'):
+        assert token in student
+    for token in ('teacher-focus-stage:fullscreen', 'student-focus-stage:fullscreen', 'teacher-dashboard-v14', 'student-portal-v14', 'prefers-reduced-motion'):
         assert token in css
-    for token in ('navigator.share', 'navigator.canShare', 'QR downloaded and join link copied'):
+    for token in ('requestFullscreen', 'exitFullscreen', 'navigator.share', 'QR downloaded and join link copied'):
         assert token in js

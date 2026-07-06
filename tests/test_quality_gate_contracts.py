@@ -48,8 +48,12 @@ def test_motion_javascript_contracts_exist():
 def test_teacher_and_student_live_updates_are_background_polling():
     teacher = read('templates/teacher/live_session.html')
     student = read('templates/student/portal.html')
-    assert 'setInterval(load, 1000)' in teacher
-    assert 'setInterval(load,1000)' in student
+    assert 'const POLL_INTERVAL_MS = 1000' in teacher
+    assert 'const POLL_INTERVAL_MS = 1000' in student
+    assert 'window.setInterval(load, POLL_INTERVAL_MS)' in teacher
+    assert 'window.setInterval(load, POLL_INTERVAL_MS)' in student
+    assert 'if (loading) return' in teacher
+    assert 'if (loading) return' in student
     assert "no-store" in teacher
     assert "no-store" in student
     assert 'Connecting to live doubts' in teacher

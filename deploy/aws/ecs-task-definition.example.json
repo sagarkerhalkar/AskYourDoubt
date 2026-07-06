@@ -1,0 +1,39 @@
+{
+  "family": "askyourdoubt-web",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/askyourdoubtTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "web",
+      "image": "ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/askyourdoubt:production",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 9000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {"name": "AYD_ENV", "value": "production"},
+        {"name": "AYD_PORT", "value": "9000"},
+        {"name": "AYD_BASE_URL", "value": "https://CUSTOMER_SUBDOMAIN"}
+      ],
+      "secrets": [
+        {"name": "AYD_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:ap-south-1:ACCOUNT_ID:secret:askyourdoubt/secret-key"},
+        {"name": "DATABASE_URL", "valueFrom": "arn:aws:secretsmanager:ap-south-1:ACCOUNT_ID:secret:askyourdoubt/database-url"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/askyourdoubt-web",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
